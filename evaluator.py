@@ -210,14 +210,35 @@ def _client_expressed_problem(client_text: str) -> bool:
 
 
 def _client_needs_apology(client_text: str) -> bool:
-    system_fault_words = [
-        "из-за вас", "из-за системы", "ваша система", "ошибка",
-        "сбросил", "не по моей вине", "по вине", "баг", "глюч",
-        "сломалось", "не работает", "пропал", "исчез", "потерял",
-        "не приходит", "отклоняет", "не удалось", "сбой",
-    ]
     tl = client_text.lower()
-    return any(p in tl for p in system_fault_words)
+
+    clearly_system = [
+        "из-за вас", "из-за системы", "ваша система", "по вине",
+        "баг", "глюч", "сбой",
+    ]
+    if any(p in tl for p in clearly_system):
+        return True
+
+    generic_faults = [
+        "не работает", "сломалось", "сломал", "не открывается",
+        "не загружается", "не приходит", "пропал", "исчез", "потерял",
+        "сбросил", "отклоняет", "не удалось",
+    ]
+    if any(p in tl for p in generic_faults):
+        return True
+
+    document_context = [
+        "чек", "сумма", "расчёт", "расчет", "платёж", "платеж",
+        "документ", "начислен", "квитанци", "счёт", "счет",
+        "тариф", "комисси", "процент", "лимит", "баланс",
+        "данные", "реквизит", "номер", "адрес", "дата",
+    ]
+    has_document_context = any(p in tl for p in document_context)
+
+    if "ошибка" in tl and not has_document_context:
+        return True
+
+    return False
 
 
 def _compute_similarity(text1: str, text2: str) -> float:
