@@ -731,54 +731,42 @@ def get_employees(chats: List[Chat]) -> List[str]:
 
 def filter_chats_for_employee(chats: List[Chat], employee_name: str, max_chats: int = 0) -> List[Chat]:
     filtered = []
+    emp_key = employee_name.strip().lower()
+
     for chat in chats:
-        has_employee = False
-        has_client = False
-        has_other_employee = False
-
-        for msg in chat.messages:
-            if msg.role == MessageRole.BOT:
-                continue
-            if msg.role == MessageRole.EMPLOYEE:
-                if msg.sender.strip().lower() == employee_name.strip().lower():
-                    has_employee = True
-                else:
-                    has_other_employee = True
-
-            if msg.role in (MessageRole.CLIENT, MessageRole.UNKNOWN):
-                has_client = True
-
-        if has_other_employee:
+        is_assigned = (
+            chat.employee_name is not None
+            and chat.employee_name.strip().lower() == emp_key
+        )
+        if not is_assigned:
             continue
 
-        if has_employee and has_client:
-            emp_msg_count = sum(
-                1 for m in chat.messages
-                if m.role == MessageRole.EMPLOYEE
-                and m.sender.strip().lower() == employee_name.strip().lower()
-            )
+        emp_msg_count = sum(
+            1 for m in chat.messages
+            if m.role == MessageRole.EMPLOYEE
+            and m.sender.strip().lower() == emp_key
+        )
 
-            total_non_bot = sum(1 for m in chat.messages if m.role != MessageRole.BOT)
+        if emp_msg_count <= 3:
+            continue
 
-            if emp_msg_count < 3 or (emp_msg_count / max(total_non_bot, 1)) < 0.5:
-                continue
+        has_client = any(m.role == MessageRole.CLIENT for m in chat.messages)
+        if not has_client:
+            continue
 
-            filtered_messages = []
-            for msg in chat.messages:
-                if msg.role == MessageRole.BOT:
-                    continue
-                if msg.role == MessageRole.EMPLOYEE and msg.sender.strip().lower() != employee_name.strip().lower():
-                    continue
-                filtered_messages.append(msg)
+        filtered_messages = [
+            m for m in chat.messages
+            if m.role != MessageRole.BOT
+            and not (m.role == MessageRole.EMPLOYEE and m.sender.strip().lower() != emp_key)
+        ]
 
-            if filtered_messages:
-                new_chat = Chat(
-                    id=chat.id,
-                    employee_name=employee_name,
-                    date=chat.date,
-                    messages=filtered_messages
-                )
-                filtered.append(new_chat)
+        if filtered_messages:
+            filtered.append(Chat(
+                id=chat.id,
+                employee_name=employee_name,
+                date=chat.date,
+                messages=filtered_messages
+            ))
 
     if max_chats > 0:
         filtered = filtered[:max_chats]
