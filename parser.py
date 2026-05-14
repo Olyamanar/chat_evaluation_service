@@ -752,14 +752,15 @@ def filter_chats_for_employee(chats: List[Chat], employee_name: str, max_chats: 
             continue
 
         if has_employee and has_client:
-            total_non_bot = sum(1 for m in chat.messages if m.role != MessageRole.BOT)
             emp_msg_count = sum(
                 1 for m in chat.messages
                 if m.role == MessageRole.EMPLOYEE
                 and m.sender.strip().lower() == employee_name.strip().lower()
             )
 
-            if emp_msg_count < 2 or (emp_msg_count / max(total_non_bot, 1)) < 0.3:
+            total_non_bot = sum(1 for m in chat.messages if m.role != MessageRole.BOT)
+
+            if emp_msg_count < 3 or (emp_msg_count / max(total_non_bot, 1)) < 0.5:
                 continue
 
             filtered_messages = []
