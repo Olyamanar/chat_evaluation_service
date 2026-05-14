@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сервис оценки чатов сотрудников</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #2C3E50;
+            --primary-light: #34495E;
+            --accent: #3498DB;
+            --accent-hover: #2980B9;
+            --success: #27AE60;
+            --warning: #F39C12;
+            --danger: #E74C3C;
+            --bg: #F8F9FA;
+            --card-bg: #FFFFFF;
+            --text: #2C3E50;
+            --text-light: #7F8C8D;
+            --border: #E0E0E0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+        
+        .header h1 { font-size: 22px; font-weight: 600; }
+        .header .subtitle { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+        
+        .header-btn {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .header-btn:hover { background: rgba(255,255,255,0.25); }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--bg);
+        }
+        
+        .steps {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            background: var(--bg);
+            color: var(--text-light);
+            transition: all 0.3s;
+        }
+        .step.active { background: var(--accent); color: white; }
+        .step.completed { background: var(--success); color: white; }
+        .step-number {
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700;
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--bg);
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: rgba(52, 152, 219, 0.05);
+        }
+        .upload-zone input { display: none; }
+        .upload-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+        .upload-text { color: var(--text-light); font-size: 14px; }
+        .upload-text strong { color: var(--accent); }
+        
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 6px;
+        }
+        
+        select, input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            color: var(--text);
+            background: white;
+            transition: border-color 0.2s;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+        .btn-accent { background: var(--accent); color: white; opacity: 0.75; }
+        .btn-accent:hover { opacity: 1; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover:not(:disabled) { background: #219a52; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn-outline:hover:not(:disabled) { background: var(--bg); }
+        
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        .progress-container { margin: 20px 0; }
+        .progress-bar-bg {
+            background: var(--bg);
+            border-radius: 10px;
+            height: 24px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+            border-radius: 10px;
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .progress-text {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-light);
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .results-table th {
+            background: var(--primary);
+            color: white;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .results-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .results-table tr:hover td { background: rgba(52, 152, 219, 0.04); }
+        
+        .chat-expanded {
+            background: var(--bg) !important;
+        }
+        .chat-expanded-row td {
+            padding: 0 !important;
+        }
+        .chat-expanded-content {
+            padding: 16px 24px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .score-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+        }
+        .score-1 { background: var(--danger); }
+        .score-3 { background: var(--warning); }
+        .score-5 { background: var(--success); }
+        
+        .total-score {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+        }
+        .total-0 { background: var(--danger); }
+        .total-30 { background: var(--warning); }
+        .total-100 { background: var(--success); }
+        
+        .section-hidden { display: none; }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 960px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+        .modal-close {
+            float: right;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+        
+        .chat-message {
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            max-width: 100%;
+        }
+        .msg-employee {
+            background: #E8F5E9;
+            margin-left: auto;
+            border: 1px solid #C8E6C9;
+        }
+        .msg-client {
+            background: #E3F2FD;
+            margin-right: auto;
+            border: 1px solid #BBDEFB;
+        }
+        .msg-sender {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 2px;
+        }
+        .msg-text { word-break: break-word; }
+        
+        .criteria-list { margin: 12px 0; }
+        .criteria-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: var(--bg);
+        }
+        .criteria-name { font-weight: 600; font-size: 13px; }
+        .criteria-just { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+        
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin: 2px;
+        }
+        .tag-green { background: #E8F5E9; color: #2E7D32; }
+        .tag-red { background: #FFEBEE; color: #C62828; }
+        .tag-blue { background: #E3F2FD; color: #1565C0; }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .summary-card-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .summary-card-label {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+        
+        .examples-list { margin-top: 16px; }
+        .example-item {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .example-info { font-size: 13px; }
+        .example-info small { color: var(--text-light); }
+        
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+        .alert-info { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+        .alert-warning { background: #FFF8E1; color: #F57F17; border: 1px solid #FFE082; }
+        .alert-error { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
+        .alert-success { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
+        
+        .loading { 
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .row { display: flex; gap: 16px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 200px; }
+        
+        .format-hint {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 12px;
+        }
+        .format-hint code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+        }
+        
+        .mark-good-btn {
+            background: none;
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .mark-good-btn:hover { background: var(--success); color: white; }
+        .mark-good-btn.marked {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+        
+        .offline-badge {
+            background: var(--success);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .header { padding: 15px 20px; }
+            .header h1 { font-size: 18px; }
+            .container { padding: 16px; }
+            .card { padding: 16px; }
+            .row { flex-direction: column; }
+            .col { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>Сервис оценки чатов</h1>
+        <div class="subtitle">Массовая оценка диалогов сотрудников поддержки <span class="offline-badge">Работает офлайн</span></div>
+    </div>
+    <button class="header-btn" onclick="showExamples()">Эталонные диалоги</button>
+</div>
+
+<div class="container">
+    <div class="steps" id="steps">
+        <div class="step active" data-step="1">
+            <span class="step-number">1</span>
+            Загрузка файла
+        </div>
+        <div class="step" data-step="2">
+            <span class="step-number">2</span>
+            Настройка оценки
+        </div>
+        <div class="step" data-step="3">
+            <span class="step-number">3</span>
+            Результаты
+        </div>
+    </div>
+
+    <div id="section-upload">
+        <div class="card">
+            <div class="card-title">Загрузка файла с чатами</div>
+            <div class="alert alert-info">
+                Загрузите файл TXT или XML с выгрузкой чатов. Сервис автоматически определит сотрудников и диалоги.
+                Сообщения от бота «Поддержка клиентов» будут исключены из оценки.
+                <br><strong>Никаких API-ключей не нужно — оценка работает полностью на вашем компьютере.</strong>
+            </div>
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" accept=".txt,.xml" onchange="handleFileUpload(event)">
+                <div class="upload-icon">&#128196;</div>
+                <div class="upload-text">
+                    Перетащите файл сюда или <strong>нажмите для выбора</strong><br>
+                    <small>Поддерживаемые форматы: TXT, XML</small>
+                </div>
+            </div>
+            <div id="uploadResult" class="section-hidden" style="margin-top: 16px;"></div>
+            
+            <div class="format-hint">
+                <strong>Поддерживаемые форматы TXT:</strong><br>
+                <code>[12.05.2024 10:30:15] Имя Отправителя: текст сообщения</code><br>
+                <code>[12.05.2024 10:30:15] Имя (сотрудник): текст сообщения</code><br>
+                <code>10:30 - Имя: текст сообщения</code><br>
+                <strong>Поддерживаемые форматы XML:</strong><br>
+                <code>&lt;chat employee="Имя"&gt;&lt;message from="Имя" role="employee"&gt;текст&lt;/message&gt;&lt;/chat&gt;</code>
+            </div>
+        </div>
+    </div>
+
+    <div id="section-config" class="section-hidden">
+        <div class="card">
+            <div class="card-title">Настройка оценки</div>
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label class="form-label">Сотрудник для оценки</label>
+                        <select id="employeeSelect" onchange="onEmployeeChange()">
+                            <option value="">Выберите сотрудника</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label class="form-label">Количество диалогов для оценки</label>
+                        <input type="number" id="maxChats" value="100" min="1" max="1000">
+                    </div>
+                </div>
+            </div>
+            <div id="employeeInfo" class="section-hidden" style="margin-top: 12px;"></div>
+            <div class="btn-group" style="margin-top: 16px;">
+                <button class="btn btn-primary" id="startEvalBtn" onclick="startEvaluation()" disabled>
+                    Начать оценку
+                </button>
+                <button class="btn btn-outline" onclick="goToStep(1)">Назад</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="section-results" class="section-hidden">
+        <div class="summary-cards" id="summaryCards"></div>
+        
+        <div class="card">
+            <div class="card-title">Результаты оценки</div>
+            <div class="btn-group" style="margin-bottom: 16px;">
+                <button class="btn btn-success" onclick="exportExcel()">Экспорт в Excel</button>
+                <button class="btn btn-outline" onclick="goToStep(2)">Новая оценка</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="results-table" id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>ID</th>
+                            <th>Лишние вопросы</th>
+                            <th>Решение вопроса</th>
+                            <th>Тон и вежливость</th>
+                            <th>Итого</th>
+                            <th style="min-width: 200px;">Действия / Диалог</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+        <div id="modalContent"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="examplesModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('examplesModal')">&times;</button>
+        <div class="modal-title">Эталонные диалоги (для дообучения)</div>
+        <div class="alert alert-info">
+            Отмечайте хорошие диалоги во время оценки. Они будут использоваться как эталонные примеры —
+            диалоги, похожие на эталонные, получат более высокую оценку.
+        </div>
+        <div id="examplesList" class="examples-list"></div>
+    </div>
+</div>
+
+<script>
+const API = '';
+let currentFileId = null;
+let currentSessionId = null;
+let currentResults = [];
+let markedChats = new Set();
+let viewedChats = new Set();
+
+function goToStep(step) {
+    document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('section-hidden'));
+    const sectionMap = {1: 'upload', 2: 'config', 3: 'results'};
+    const section = document.getElementById('section-' + sectionMap[step]);
+    if (section) section.classList.remove('section-hidden');
+    
+    document.querySelectorAll('.step').forEach(s => {
+        const sNum = parseInt(s.dataset.step);
+        s.classList.remove('active', 'completed');
+        if (sNum === step) s.classList.add('active');
+        else if (sNum < step) s.classList.add('completed');
+    });
+}
+
+function showExamples() {
+    document.getElementById('examplesModal').classList.add('active');
+    loadExamples();
+}
+
+function loadExamples() {
+    fetch(API + '/api/good-examples')
+        .then(r => r.json())
+        .then(data => {
+            const list = document.getElementById('examplesList');
+            if (!data.examples || data.examples.length === 0) {
+                list.innerHTML = '<div class="alert alert-warning">Нет сохранённых эталонных диалогов. Отметьте хорошие диалоги при оценке.</div>';
+                return;
+            }
+            list.innerHTML = data.examples.map(ex => `
+                <div class="example-item">
+                    <div class="example-info">
+                        <strong>${ex.employee_name}</strong> — Диалог #${ex.chat_id}
+                        <br><small>Добавлен: ${new Date(ex.added_at).toLocaleString('ru')}</small>
+                        <br><small>Сообщений: ${ex.messages ? ex.messages.length : 0}</small>
+                    </div>
+                    <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; border-color: var(--danger); color: var(--danger);" onclick="deleteExample('${ex.id}')">Удалить</button>
+                </div>
+            `).join('');
+        });
+}
+
+function deleteExample(id) {
+    if (!confirm('Удалить этот эталонный диалог?')) return;
+    fetch(API + '/api/good-examples/' + id, {method: 'DELETE'})
+        .then(() => loadExamples());
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.classList.remove('active');
+    });
+});
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+        document.getElementById('fileInput').files = e.dataTransfer.files;
+        handleFileUpload({target: {files: e.dataTransfer.files}});
+    }
+});
+
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['txt', 'xml'].includes(ext)) {
+        showUploadResult('Поддерживаются только файлы TXT и XML', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    showUploadResult('Загрузка и парсинг файла...', 'info');
+    
+    fetch(API + '/api/upload', {method: 'POST', body: formData})
+        .then(r => r.json())
+        .then(data => {
+            if (data.detail) {
+                showUploadResult(data.detail, 'error');
+                return;
+            }
+            currentFileId = data.file_id;
+            showUploadResult(
+                `Файл загружен: <strong>${data.filename}</strong><br>` +
+                `Всего диалогов: ${data.total_chats} | Найдено сотрудников: ${data.employees.length}`,
+                'success'
+            );
+            
+            const select = document.getElementById('employeeSelect');
+            select.innerHTML = '<option value="">Выберите сотрудника</option>';
+            data.employees.forEach(emp => {
+                const info = (data.employee_info || []).find(e => e.name === emp);
+                const count = info ? info.chat_count : '?';
+                select.innerHTML += `<option value="${emp}">${emp} (${count} диалогов)</option>`;
+            });
+            
+            goToStep(2);
+        })
+        .catch(err => {
+            showUploadResult('Ошибка загрузки: ' + err.message, 'error');
+        });
+}
+
+function showUploadResult(html, type) {
+    const el = document.getElementById('uploadResult');
+    el.classList.remove('section-hidden');
+    el.innerHTML = `<div class="alert alert-${type}">${html}</div>`;
+}
+
+function onEmployeeChange() {
+    const emp = document.getElementById('employeeSelect').value;
+    const btn = document.getElementById('startEvalBtn');
+    const info = document.getElementById('employeeInfo');
+    
+    if (emp) {
+        btn.disabled = false;
+        info.classList.remove('section-hidden');
+        info.innerHTML = `<div class="alert alert-info">Будут оценены диалоги сотрудника <strong>${emp}</strong>. Сообщения от бота исключены.</div>`;
+    } else {
+        btn.disabled = true;
+        info.classList.add('section-hidden');
+    }
+}
+
+function startEvaluation() {
+    const employeeName = document.getElementById('employeeSelect').value;
+    const maxChats = parseInt(document.getElementById('maxChats').value) || 10;
+    
+    if (!employeeName) { alert('Выберите сотрудника'); return; }
+    if (!currentFileId) { alert('Загрузите файл'); return; }
+    
+    const btn = document.getElementById('startEvalBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading"></span> Оценка...';
+    
+    fetch(API + '/api/evaluate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            file_id: currentFileId,
+            employee_name: employeeName,
+            max_chats: maxChats
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.detail) {
+            alert('Ошибка: ' + data.detail);
+            btn.disabled = false;
+            btn.textContent = 'Начать оценку';
+            return;
+        }
+        currentSessionId = data.session_id;
+        currentResults = data.results;
+        showResults(data.results);
+    })
+    .catch(err => {
+        alert('Ошибка: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Начать оценку';
+    });
+}
+
+function showResults(results) {
+    goToStep(3);
+    
+    const avg = results.reduce((s, r) => s + r.total_score, 0) / results.length;
+    const perfect = results.filter(r => r.total_score === 100).length;
+    const bad = results.filter(r => r.total_score === 0).length;
+    
+    document.getElementById('summaryCards').innerHTML = `
+        <div class="summary-card">
+            <div class="summary-card-value">${results.length}</div>
+            <div class="summary-card-label">Диалогов оценено</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-card-value" style="color: ${avg >= 70 ? '#27AE60' : avg >= 40 ? '#F39C12' : '#E74C3C'}">${avg.toFixed(1)}</div>
+            <div class="summary-card-label">Средний балл</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-card-value" style="color: #27AE60">${perfect}</div>
+            <div class="summary-card-label">Отличных (100)</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-card-value" style="color: #E74C3C">${bad}</div>
+            <div class="summary-card-label">Критичных (0)</div>
+        </div>
+    `;
+    
+    const tbody = document.getElementById('resultsBody');
+    tbody.innerHTML = results.map((r, i) => `
+        <tr id="row-${i}">
+            <td>${i + 1}</td>
+            <td>#${r.chat_id}</td>
+            <td>${renderScoreBadge(r.criteria_scores[0].score)}</td>
+            <td>${renderScoreBadge(r.criteria_scores[1].score)}</td>
+            <td>${renderScoreBadge(r.criteria_scores[2].score)}</td>
+            <td>${renderTotalScore(r.total_score)}</td>
+            <td>
+                <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px;" onclick="showDetail(${i})">Подробнее</button>
+                <button class="btn ${viewedChats.has(r.chat_id) ? 'btn-accent' : 'btn-outline'} btn-dialog" style="padding: 4px 12px; font-size: 12px; ${viewedChats.has(r.chat_id) ? '' : 'border-color: var(--accent); color: var(--accent);'}" onclick="toggleChatText(${i})" id="toggle-${i}">${viewedChats.has(r.chat_id) ? 'Просмотрен' : 'Диалог'}</button>
+                <button class="mark-good-btn ${markedChats.has(r.chat_id) ? 'marked' : ''}" id="mark-${r.chat_id}" onclick="markGood('${r.chat_id}')">
+                    ${markedChats.has(r.chat_id) ? 'Сохранён' : 'Эталон'}
+                </button>
+            </td>
+        </tr>
+        <tr id="chat-row-${i}" class="section-hidden chat-expanded-row">
+            <td colspan="7">
+                <div class="chat-expanded-content" id="chat-content-${i}">
+                    <div style="text-align: center; color: var(--text-light); padding: 20px;">Загрузка...</div>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function toggleChatText(index) {
+    const chatRow = document.getElementById('chat-row-' + index);
+    const toggleBtn = document.getElementById('toggle-' + index);
+    const r = currentResults[index];
+    
+    if (!chatRow.classList.contains('section-hidden')) {
+        chatRow.classList.add('section-hidden');
+        toggleBtn.textContent = viewedChats.has(r.chat_id) ? 'Просмотрен' : 'Диалог';
+        return;
+    }
+    
+    chatRow.classList.remove('section-hidden');
+    toggleBtn.textContent = 'Скрыть';
+    
+    const content = document.getElementById('chat-content-' + index);
+    if (content.dataset.loaded) return;
+    content.dataset.loaded = '1';
+    
+    if (!r || !currentSessionId) return;
+    
+    renderChatMessagesInline(content, r.chat_id);
+    
+    viewedChats.add(r.chat_id);
+    toggleBtn.className = 'btn btn-accent btn-dialog';
+    toggleBtn.style.cssText = 'padding: 4px 12px; font-size: 12px;';
+    toggleBtn.textContent = 'Просмотрен';
+}
+
+function renderScoreBadge(score) {
+    return `<span class="score-badge score-${score}">${score}</span>`;
+}
+
+function renderTotalScore(score) {
+    const cls = score === 100 ? 'total-100' : score === 30 ? 'total-30' : 'total-0';
+    const label = score === 100 ? 'Отлично' : score === 30 ? 'Удовл.' : 'Критично';
+    return `<span class="total-score ${cls}">${score} ${label}</span>`;
+}
+
+function showDetail(index) {
+    const r = currentResults[index];
+    if (!r) return;
+    
+    const content = document.getElementById('modalContent');
+    content.innerHTML = `
+        <div class="modal-title">Диалог #${r.chat_id} — ${r.employee_name} — ${r.total_score}/100</div>
+        
+        <div class="alert alert-info" style="margin-bottom: 12px;">
+            <strong>Резюме:</strong> ${r.summary}
+        </div>
+        
+        <h4 style="margin: 12px 0 8px;">Оценки по критериям</h4>
+        <div class="criteria-list">
+            ${r.criteria_scores.map(cs => `
+                <div class="criteria-item">
+                    ${renderScoreBadge(cs.score)}
+                    <div>
+                        <div class="criteria-name">${cs.name}</div>
+                        <div class="criteria-just">${cs.justification}</div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        
+        ${r.strengths.length > 0 ? `
+            <h4 style="margin: 16px 0 8px; color: #27AE60;">Сильные стороны</h4>
+            ${r.strengths.map(s => `<span class="tag tag-green">${s}</span>`).join('')}
+        ` : ''}
+        
+        ${r.weaknesses.length > 0 ? `
+            <h4 style="margin: 16px 0 8px; color: #E74C3C;">Слабые стороны</h4>
+            ${r.weaknesses.map(w => `<span class="tag tag-red">${w}</span>`).join('')}
+        ` : ''}
+        
+        ${r.recommendations.length > 0 ? `
+            <h4 style="margin: 16px 0 8px; color: #2980B9;">Рекомендации</h4>
+            ${r.recommendations.map(rec => `<span class="tag tag-blue">${rec}</span>`).join('')}
+        ` : ''}
+        
+        <h4 style="margin: 16px 0 8px;">Текст диалога
+            <label style="float: right; font-size: 12px; font-weight: 400; cursor: pointer;">
+                <input type="checkbox" id="showAllMsgs" onchange="renderChatMessages('${r.chat_id}', ${index})">
+                Все сообщения
+            </label>
+        </h4>
+        <div id="chatMessages" style="background: var(--bg); padding: 12px; border-radius: 8px;">
+            <div style="text-align: center; color: var(--text-light);">Загрузка...</div>
+        </div>
+    `;
+    
+    document.getElementById('detailModal').classList.add('active');
+    renderChatMessages(r.chat_id, index);
+}
+
+function renderChatMessages(chatId, index) {
+    const showAll = document.getElementById('showAllMsgs')?.checked;
+    
+    if (currentSessionId) {
+        fetch(API + '/api/chat/' + currentSessionId + '/' + chatId)
+            .then(res => res.json())
+            .then(data => {
+                if (data.chat && data.chat.messages) {
+                    let msgs = data.chat.messages;
+                    if (!showAll) {
+                        msgs = msgs.filter(m => m.role !== 'bot');
+                    }
+                    const container = document.getElementById('chatMessages');
+                    if (!container) return;
+                    container.innerHTML = msgs.map(m => {
+                        let cls = 'msg-client';
+                        if (m.role === 'employee') cls = 'msg-employee';
+                        else if (m.role === 'bot') cls = 'msg-client';
+                        const label = m.role === 'employee' ? 'Сотрудник' : m.role === 'bot' ? 'Бот' : 'Клиент';
+                        const badge = m.role === 'bot' ? '<span style="font-size:10px;color:#999;"> [бот]</span>' : '';
+                        return '<div class="chat-message ' + cls + '">' +
+                            '<div class="msg-sender">' + label + ' (' + escapeHtml(m.sender) + ')' + badge + '</div>' +
+                            '<div class="msg-text">' + escapeHtml(m.text) + '</div>' +
+                        '</div>';
+                    }).join('');
+                }
+            });
+    }
+}
+
+function renderChatMessagesInline(container, chatId) {
+    if (!currentSessionId || !chatId) return;
+    container.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 20px;">Загрузка...</div>';
+    fetch(API + '/api/chat/' + currentSessionId + '/' + chatId)
+        .then(res => res.json())
+        .then(data => {
+            if (data.chat && data.chat.messages) {
+                container.innerHTML = data.chat.messages
+                    .filter(m => m.role !== 'bot')
+                    .map(m => {
+                        const cls = m.role === 'employee' ? 'msg-employee' : 'msg-client';
+                        const label = m.role === 'employee' ? 'Сотрудник' : 'Клиент';
+                        return '<div class="chat-message ' + cls + '">' +
+                            '<div class="msg-sender">' + label + ' (' + escapeHtml(m.sender) + ')</div>' +
+                            '<div class="msg-text">' + escapeHtml(m.text) + '</div>' +
+                        '</div>';
+                    }).join('');
+            }
+        })
+        .catch(err => {
+            container.innerHTML = '<div class="alert alert-error">Ошибка загрузки: ' + err.message + '</div>';
+        });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function markGood(chatId) {
+    if (markedChats.has(chatId)) return;
+    if (!currentSessionId) return;
+    
+    fetch(API + '/api/mark-good/' + currentSessionId + '/' + chatId, {method: 'POST'})
+        .then(r => {
+            if (!r.ok) throw new Error('Ошибка');
+            return r.json();
+        })
+        .then(() => {
+            markedChats.add(chatId);
+            const btn = document.getElementById('mark-' + chatId);
+            if (btn) {
+                btn.classList.add('marked');
+                btn.textContent = 'Сохранён';
+            }
+        })
+        .catch(err => alert('Ошибка: ' + err.message));
+}
+
+function exportExcel() {
+    if (!currentSessionId) { alert('Нет результатов для экспорта'); return; }
+    window.open(API + '/api/export/' + currentSessionId, '_blank');
+}
+</script>
+
+</body>
+</html>

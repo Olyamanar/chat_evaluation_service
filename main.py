@@ -1,0 +1,224 @@
+import os
+import io
+import uuid
+import json
+from typing import Dict, List
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, StreamingResponse
+
+from models import (
+    Chat, ChatEvaluation, EvaluationRequest,
+    GoodExample, MessageRole
+)
+from parser import parse_file, get_employees, filter_chats_for_employee
+from evaluator import evaluate_chats_batch
+from exporter import export_to_excel
+from learning import (
+    add_good_example, get_good_examples,
+    delete_good_example, format_examples_for_prompt
+)
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+uploaded_files: Dict[str, str] = {}
+parsed_chats: Dict[str, List[Chat]] = {}
+evaluation_results: Dict[str, List[ChatEvaluation]] = {}
+evaluation_chats: Dict[str, List[Chat]] = {}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+
+
+app = FastAPI(title="Сервис оценки чатов", lifespan=lifespan)
+
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/")
+async def root():
+    return FileResponse(os.path.join(static_dir, "index.html"))
+
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Файл не выбран")
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".txt", ".xml"):
+        raise HTTPException(status_code=400, detail="Поддерживаются только файлы TXT и XML")
+
+    file_id = str(uuid.uuid4())[:8]
+    file_path = os.path.join(UPLOAD_DIR, f"{file_id}{ext}")
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    uploaded_files[file_id] = file_path
+
+    try:
+        chats = parse_file(file_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Ошибка парсинга файла: {str(e)}")
+
+    if not chats:
+        raise HTTPException(status_code=400, detail="Не удалось найти диалоги в файле. Проверьте формат файла.")
+
+    parsed_chats[file_id] = chats
+    employees = get_employees(chats)
+
+    emp_info = []
+    for emp in employees:
+        emp_chats = filter_chats_for_employee(chats, emp)
+        emp_info.append({"name": emp, "chat_count": len(emp_chats)})
+
+    return {
+        "file_id": file_id,
+        "filename": file.filename,
+        "total_chats": len(chats),
+        "employees": employees,
+        "employee_info": emp_info
+    }
+
+
+@app.get("/api/employees/{file_id}")
+async def get_employees_list(file_id: str):
+    if file_id not in parsed_chats:
+        raise HTTPException(status_code=404, detail="Файл не найден. Загрузите файл заново.")
+
+    chats = parsed_chats[file_id]
+    employees = get_employees(chats)
+
+    result = []
+    for emp in employees:
+        emp_chats = filter_chats_for_employee(chats, emp)
+        result.append({
+            "name": emp,
+            "chat_count": len(emp_chats)
+        })
+
+    return {"employees": result}
+
+
+@app.post("/api/evaluate")
+async def evaluate(request: EvaluationRequest):
+    file_id = request.file_id
+    employee_name = request.employee_name
+    max_chats = request.max_chats
+
+    if file_id not in parsed_chats:
+        raise HTTPException(status_code=404, detail="Файл не найден. Загрузите файл заново.")
+
+    chats = parsed_chats[file_id]
+    filtered = filter_chats_for_employee(chats, employee_name, max_chats)
+
+    if not filtered:
+        raise HTTPException(status_code=400, detail=f"Нет диалогов для сотрудника: {employee_name}")
+
+    session_id = str(uuid.uuid4())[:8]
+    evaluation_chats[session_id] = filtered
+
+    evaluations = evaluate_chats_batch(filtered)
+
+    evaluation_results[session_id] = evaluations
+
+    return {
+        "session_id": session_id,
+        "total": len(evaluations),
+        "employee_name": employee_name,
+        "results": [ev.model_dump() for ev in evaluations]
+    }
+
+
+@app.get("/api/results/{session_id}")
+async def get_results(session_id: str):
+    if session_id not in evaluation_results:
+        raise HTTPException(status_code=404, detail="Результаты не найдены")
+    return {"results": [ev.model_dump() for ev in evaluation_results[session_id]]}
+
+
+@app.get("/api/chats/{session_id}")
+async def get_session_chats(session_id: str):
+    if session_id not in evaluation_chats:
+        raise HTTPException(status_code=404, detail="Чаты не найдены")
+    return {"chats": [c.model_dump() for c in evaluation_chats[session_id]]}
+
+
+@app.get("/api/chat/{session_id}/{chat_id}")
+async def get_chat_detail(session_id: str, chat_id: str):
+    if session_id not in evaluation_chats:
+        raise HTTPException(status_code=404, detail="Сессия не найдена")
+
+    chats = evaluation_chats[session_id]
+    for chat in chats:
+        if chat.id == chat_id:
+            return {"chat": chat.model_dump()}
+
+    raise HTTPException(status_code=404, detail="Диалог не найден")
+
+
+@app.post("/api/mark-good/{session_id}/{chat_id}")
+async def mark_as_good(session_id: str, chat_id: str):
+    if session_id not in evaluation_chats:
+        raise HTTPException(status_code=404, detail="Сессия не найдена")
+
+    chats = evaluation_chats[session_id]
+    for chat in chats:
+        if chat.id == chat_id:
+            example = add_good_example(chat)
+            return {"status": "ok", "example": example.model_dump()}
+
+    raise HTTPException(status_code=404, detail="Диалог не найден")
+
+
+@app.get("/api/good-examples")
+async def list_good_examples():
+    examples = get_good_examples()
+    return {"examples": [ex.model_dump() for ex in examples]}
+
+
+@app.delete("/api/good-examples/{example_id}")
+async def remove_good_example(example_id: str):
+    success = delete_good_example(example_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Пример не найден")
+    return {"status": "ok"}
+
+
+@app.get("/api/export/{session_id}")
+async def export_results(session_id: str):
+    if session_id not in evaluation_results:
+        raise HTTPException(status_code=404, detail="Результаты не найдены")
+
+    if session_id not in evaluation_chats:
+        raise HTTPException(status_code=404, detail="Чаты не найдены")
+
+    evaluations = evaluation_results[session_id]
+    chats = evaluation_chats[session_id]
+    employee_name = evaluations[0].employee_name if evaluations else "Unknown"
+
+    try:
+        excel_data = export_to_excel(evaluations, chats, employee_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка создания Excel: {str(e)}")
+
+    return StreamingResponse(
+        io.BytesIO(excel_data),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename=evaluation_{employee_name}_{session_id}.xlsx"
+        }
+    )
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

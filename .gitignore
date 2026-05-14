@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+data/uploads/*
+!data/uploads/.gitkeep
+data/good_examples.json
+.env
+*.xlsx
