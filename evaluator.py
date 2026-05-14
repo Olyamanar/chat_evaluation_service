@@ -90,6 +90,57 @@ CLOSING_PHRASES = [
 ]
 
 
+IMPERATIVE_VERBS = [
+    "сделай", "верни", "возвращай", "отмени", "восстанови", "подключи", "отключи",
+    "переделай", "исправь", "поправь", "напиши", "позвони", "пришли", "отправь",
+    "дай", "покажи", "объясни", "разберись", "реши", "прекрати", "останови",
+    "убери", "забери", "прими", "действуй", "ответь", "соедини",
+    "переведи", "переключай", "открой", "закрой", "включи", "выключи",
+    "скажи", "сообщи", "уточни", "проверь", "найди", "посмотри",
+    "почини", "наладь", "настрой", "смени", "замени",
+    "верните", "сделайте", "отмените", "исправьте", "напишите",
+    "позвоните", "пришлите", "отправьте", "дайте", "покажите",
+    "объясните", "разберитесь", "решите", "ответьте", "проверьте",
+    "скажите", "сообщите", "уточните", "найдите", "посмотрите",
+    "подключите", "отключите", "включите", "выключите", "почините",
+    "закройте", "откройте", "верните",
+    "прекратите", "остановитесь", "уберите", "заберите",
+    "перестаньте", "перестань", "отстань", "отстаньте",
+]
+
+SWEAR_WORDS = [
+    "блин", "ёб", "еба", "хуй", "хуя", "пизд", "пиздец",
+    "нахуй", "похуй", "оху", "аху", "охрен", "офиг", "офиге",
+    "фигня", "дерьмо", "гавно", "гандон", "мудак", "дурак", "идиот",
+    "козёл", "тварь", "сволочь", "дебил", "долба",
+    "хер", "херня", "сука", "падла",
+    "урод", "мразь",
+]
+
+
+def _client_expressed_negative(client_text: str) -> tuple:
+    if not client_text.strip():
+        return False, []
+    tl = client_text.lower()
+    reasons = []
+
+    swear_hits = sum(1 for w in SWEAR_WORDS if w in tl)
+    if swear_hits > 0:
+        reasons.append("нецензурная лексика")
+
+    aggressive_punct = _count_aggressive_punct(client_text)
+    if aggressive_punct > 0:
+        reasons.append("агрессивная пунктуация")
+
+    imperative_hits = sum(
+        1 for v in IMPERATIVE_VERBS if re.search(r'\b' + re.escape(v) + r'\b', tl)
+    )
+    if imperative_hits > 0:
+        reasons.append("повелительное наклонение")
+
+    return (swear_hits > 0 or aggressive_punct > 0 or imperative_hits > 0), reasons
+
+
 def _get_employee_messages(chat: Chat) -> List[str]:
     return [m.text for m in chat.messages if m.role == MessageRole.EMPLOYEE]
 
@@ -387,11 +438,19 @@ def _evaluate_tone_politeness(chat: Chat) -> tuple:
     )
     has_empathy = empathy_count > 0
 
+    client_negative, neg_reasons = _client_expressed_negative(client_text)
+    operator_responded = has_apology or has_empathy or _count_phrase_hits(emp_text, SOLUTION_INDICATORS) >= 2
+
     strengths = []
     weaknesses = []
     justifications = []
     penalty = 0.0
     bonus = 0.0
+
+    if client_negative and not operator_responded:
+        penalty += 3.0
+        reasons_str = ", ".join(neg_reasons)
+        weaknesses.append(f"Клиент выразил негатив ({reasons_str}) — оператор никак не отреагировал")
 
     if rude_count > 0:
         penalty += 3.0
