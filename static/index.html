@@ -554,7 +554,8 @@
             <div class="card-title">Результаты оценки</div>
             <div class="btn-group" style="margin-bottom: 16px;">
                 <button class="btn btn-success" onclick="exportExcel()">Экспорт в Excel</button>
-                <button class="btn btn-outline" onclick="goToStep(2)">Новая оценка</button>
+                <button class="btn btn-outline" onclick="goToStep(2)">Другая оценка</button>
+                <button class="btn btn-primary" onclick="resetAll(); goToStep(1)">Новый файл</button>
             </div>
             <div style="overflow-x: auto;">
                 <table class="results-table" id="resultsTable">
@@ -615,6 +616,35 @@ function goToStep(step) {
         if (sNum === step) s.classList.add('active');
         else if (sNum < step) s.classList.add('completed');
     });
+
+    if (step === 1) clearUploadResult();
+}
+
+function clearUploadResult() {
+    const el = document.getElementById('uploadResult');
+    el.classList.add('section-hidden');
+    el.innerHTML = '';
+    document.getElementById('fileInput').value = '';
+}
+
+function resetAll() {
+    currentFileId = null;
+    currentSessionId = null;
+    currentResults = [];
+    markedChats = new Set();
+    viewedChats = new Set();
+    clearUploadResult();
+
+    const select = document.getElementById('employeeSelect');
+    select.innerHTML = '<option value="">Выберите сотрудника</option>';
+
+    const btn = document.getElementById('startEvalBtn');
+    btn.disabled = true;
+    btn.textContent = 'Начать оценку';
+
+    document.getElementById('employeeInfo').classList.add('section-hidden');
+    document.getElementById('resultsBody').innerHTML = '';
+    document.getElementById('summaryCards').innerHTML = '';
 }
 
 function showExamples() {
