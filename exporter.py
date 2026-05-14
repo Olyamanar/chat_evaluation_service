@@ -132,9 +132,9 @@ def _write_details_sheet(wb: Workbook, evaluations: List[ChatEvaluation], chat_m
             ws.cell(row=current_row, column=1).font = Font(name="Arial", size=10, bold=True, italic=True)
             current_row += 1
             for msg in chat.messages:
-                if msg.role == "bot":
+                if msg.role.value == "bot":
                     continue
-                role_label = "Сотрудник" if msg.role == "employee" else "Клиент"
+                role_label = "Сотрудник" if msg.role.value == "employee" else "Клиент"
                 ws.merge_cells(f"A{current_row}:E{current_row}")
                 ws.cell(row=current_row, column=1, value=f"  {role_label}: {msg.text}")
                 ws.cell(row=current_row, column=1).font = NORMAL_FONT

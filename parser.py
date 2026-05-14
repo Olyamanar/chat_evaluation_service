@@ -135,21 +135,7 @@ def _detect_operator_names(content: str) -> List[str]:
             name = m.group(1).strip()
             if len(name) > 1 and not name.startswith("ссылк"):
                 operators.add(name)
-
-    filtered = set()
-    for name in operators:
-        nw = set(name.lower().split())
-        is_subset = False
-        for other in operators:
-            if other == name:
-                continue
-            ow = set(other.lower().split())
-            if len(nw) < len(ow) and nw.issubset(ow):
-                is_subset = True
-                break
-        if not is_subset:
-            filtered.add(name)
-    return sorted(filtered)
+    return sorted(operators)
 
 
 def _is_separator(line: str) -> bool:
@@ -421,68 +407,33 @@ def _split_dialogs_by_separator(content: str) -> List[Tuple[str, List[str]]]:
     return parts
 
 
-def _find_block_employee(block_lines: List[str]) -> Optional[str]:
-    for line in block_lines:
-        m = re.search(r"диалог\s+автоназначен\s+на\s+оператора\s+(\S+(?:\s+\S+)?)", line, re.I)
-        if m:
-            return m.group(1).strip()
-        m = re.search(r"оператор\s+(\S+(?:\s+\S+?)?)\s+(?:закрыл|изменил)", line, re.I)
-        if m:
-            return m.group(1).strip()
-    return None
-
-
-def _enrich_employee_names(chats: List[Chat], known_employees: List[str], block_context: Optional[str] = None) -> None:
+def _enrich_employee_names(chats: List[Chat], known_employees: List[str]) -> None:
     if not known_employees:
         return
     sorted_emps = sorted(known_employees, key=lambda x: len(x), reverse=True)
-    ctx_emps = sorted_emps
-    if block_context:
-        ctx_lower = block_context.strip().lower()
-        preferred = [e for e in sorted_emps if e.strip().lower() == ctx_lower]
-        if preferred:
-            ctx_emps = preferred + [e for e in sorted_emps if e.strip().lower() != ctx_lower]
 
-    def context_match(name: str) -> str:
+    def unique_match(name: str) -> str:
         nw = set(name.strip().lower().split())
         if not nw:
             return name
-        candidates = []
-        for emp in ctx_emps:
+        matches = []
+        for emp in sorted_emps:
             ew = set(emp.strip().lower().split())
             if nw == ew or (nw.issubset(ew) and len(nw) < len(ew)):
-                candidates.append(emp)
-        if len(candidates) == 1:
-            return candidates[0]
-        if len(candidates) > 1 and block_context:
-            ctx_lower = block_context.strip().lower()
-            for emp in candidates:
-                if emp.strip().lower() == ctx_lower:
-                    return emp
-        return name
+                matches.append(emp)
+        return matches[0] if len(matches) == 1 else name
 
     for chat in chats:
         if chat.employee_name:
-            chat.employee_name = context_match(chat.employee_name)
+            chat.employee_name = unique_match(chat.employee_name)
         for msg in chat.messages:
             if msg.role == MessageRole.EMPLOYEE:
-                msg.sender = context_match(msg.sender)
+                msg.sender = unique_match(msg.sender)
             elif msg.role == MessageRole.UNKNOWN:
-                matched = context_match(msg.sender)
+                matched = unique_match(msg.sender)
                 if matched != msg.sender:
                     msg.sender = matched
                     msg.role = MessageRole.EMPLOYEE
-
-
-def _find_block_employee(block_lines: List[str]) -> Optional[str]:
-    for line in block_lines:
-        m = re.search(r"диалог\s+автоназначен\s+на\s+оператора\s+(\S+(?:\s+\S+)?)", line, re.I)
-        if m:
-            return m.group(1).strip()
-        m = re.search(r"оператор\s+(\S+(?:\s+\S+?)?)\s+(?:закрыл|изменил)", line, re.I)
-        if m:
-            return m.group(1).strip()
-    return None
 
 
 def parse_txt(content: str) -> List[Chat]:
@@ -497,7 +448,6 @@ def parse_txt(content: str) -> List[Chat]:
 
     all_chats = []
     for dialog_id, block_lines in dialog_blocks:
-        block_employee = _find_block_employee(block_lines)
         date = _extract_dialog_date(block_lines)
         messages, matched = _parse_ts_format(block_lines, known_employees)
 
@@ -532,13 +482,12 @@ def parse_txt(content: str) -> List[Chat]:
                 for c in chats:
                     if not c.employee_name:
                         c.employee_name = emp_name
-                _enrich_employee_names(chats, known_employees, block_employee)
                 all_chats.extend(chats)
         else:
             chats = _group_into_chats(messages, known_employees, date, chat_id_prefix=dialog_id)
-            _enrich_employee_names(chats, known_employees, block_employee)
             all_chats.extend(chats)
 
+    _enrich_employee_names(all_chats, known_employees)
     return all_chats
 
 
