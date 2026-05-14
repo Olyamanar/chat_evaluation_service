@@ -5,6 +5,7 @@ import json
 from typing import Dict, List
 from contextlib import asynccontextmanager
 
+import re
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
@@ -28,6 +29,10 @@ uploaded_files: Dict[str, str] = {}
 parsed_chats: Dict[str, List[Chat]] = {}
 evaluation_results: Dict[str, List[ChatEvaluation]] = {}
 evaluation_chats: Dict[str, List[Chat]] = {}
+
+
+def _safe_filename(name: str) -> str:
+    return re.sub(r'[^\w\-.]', '_', name, flags=re.ASCII)
 
 
 @asynccontextmanager
@@ -214,7 +219,7 @@ async def export_results(session_id: str):
         io.BytesIO(excel_data),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f"attachment; filename=evaluation_{employee_name}_{session_id}.xlsx"
+            "Content-Disposition": f"attachment; filename=evaluation_{_safe_filename(employee_name)}_{session_id}.xlsx"
         }
     )
 
