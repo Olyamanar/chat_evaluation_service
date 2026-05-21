@@ -219,21 +219,22 @@ def _client_needs_apology(client_text: str) -> bool:
     if any(p in tl for p in clearly_system):
         return True
 
-    generic_faults = [
-        "не работает", "сломалось", "сломал", "не открывается",
-        "не загружается", "не приходит", "пропал", "исчез", "потерял",
-        "сбросил", "отклоняет", "не удалось",
+    qugo_service_faults = [
+        "сломалось", "не открывается",
+        "не загружается", "сбросил парол", "сбросил данные",
+        "ошибка системы", "ошибка на стороне",
     ]
-    if any(p in tl for p in generic_faults):
+    if any(p in tl for p in qugo_service_faults):
         return True
 
-    document_context = [
-        "чек", "сумма", "расчёт", "расчет", "платёж", "платеж",
+    document_error_words = ["чек", "сумма", "расчёт", "расчет", "платёж", "платеж",
         "документ", "начислен", "квитанци", "счёт", "счет",
-        "тариф", "комисси", "процент", "лимит", "баланс",
-        "данные", "реквизит", "номер", "адрес", "дата",
-    ]
-    has_document_context = any(p in tl for p in document_context)
+        "тариф", "комисси", "процент", "лимит", "баланс"]
+    has_document_context = any(p in tl for p in document_error_words)
+    if has_document_context:
+        error_words = ["не пришла", "недополучен", "отклоняется", "не удалось"]
+        if any(p in tl for p in error_words):
+            return True
 
     if "ошибка" in tl and not has_document_context:
         return True
