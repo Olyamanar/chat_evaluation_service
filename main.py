@@ -6,9 +6,18 @@ from typing import Dict, List
 from contextlib import asynccontextmanager
 
 import re
+from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
+
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if "=" in line and not line.startswith("#"):
+            key, val = line.split("=", 1)
+            os.environ.setdefault(key.strip(), val.strip())
 
 from models import (
     Chat, ChatEvaluation, EvaluationRequest,

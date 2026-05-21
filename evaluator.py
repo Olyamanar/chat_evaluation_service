@@ -635,22 +635,69 @@ def _evaluate_chat(chat: Chat) -> ChatEvaluation:
     pr_score, pr_just, pr_str, pr_weak = _evaluate_problem_resolution(chat)
     tp_score, tp_just, tp_str, tp_weak = _evaluate_tone_politeness(chat)
 
-    example_sim = _compare_with_good_examples(chat)
-    if example_sim > 0.4:
-        boost_msg = " (сходство с эталонным диалогом учтено)"
+    use_ai = False
+    ai_result = None
+    try:
+        from ai_evaluator import evaluate_with_ai, is_ai_available
+        if is_ai_available():
+            ai_result = evaluate_with_ai(chat, chat.employee_name or "Неизвестный")
+    except Exception:
+        pass
+
+    if ai_result and "criteria" in ai_result:
+        ai_criteria = {c["name"]: c for c in ai_result["criteria"]}
+        ai_str = ai_result.get("strengths", [])
+        ai_weak = ai_result.get("weaknesses", [])
+        ai_recs = ai_result.get("recommendations", [])
+
+        ai_tone = ai_criteria.get("Тон и вежливость")
+        if ai_tone and ai_tone.get("score") in (1, 3, 5):
+            tp_score = ai_tone["score"]
+            tp_just = ai_tone.get("justification", tp_just)
+            use_ai = True
+
+        ai_resolve = ai_criteria.get("Решение вопроса")
+        if ai_resolve and ai_resolve.get("score") in (1, 3, 5):
+            pr_score = ai_resolve["score"]
+            pr_just = ai_resolve.get("justification", pr_just)
+            use_ai = True
+
+        if use_ai:
+            all_str = list(dict.fromkeys(eq_str + ai_str))
+            all_weak = list(dict.fromkeys(eq_weak + ai_weak))
+            recommendations = ai_recs if ai_recs else _generate_recommendations(all_weak, [
+                type('CR', (), {'name': 'Лишние вопросы и сообщения', 'score': eq_score}),
+                type('CR', (), {'name': 'Решение вопроса', 'score': pr_score}),
+                type('CR', (), {'name': 'Тон и вежливость', 'score': tp_score}),
+            ])
+        else:
+            all_str = list(dict.fromkeys(eq_str + pr_str + tp_str))
+            all_weak = list(dict.fromkeys(eq_weak + pr_weak + tp_weak))
+            recommendations = _generate_recommendations(all_weak, [
+                type('CR', (), {'name': 'Лишние вопросы и сообщения', 'score': eq_score}),
+                type('CR', (), {'name': 'Решение вопроса', 'score': pr_score}),
+                type('CR', (), {'name': 'Тон и вежливость', 'score': tp_score}),
+            ])
     else:
-        boost_msg = ""
+        all_str = list(dict.fromkeys(eq_str + pr_str + tp_str))
+        all_weak = list(dict.fromkeys(eq_weak + pr_weak + tp_weak))
+        recommendations = _generate_recommendations(all_weak, [
+            type('CR', (), {'name': 'Лишние вопросы и сообщения', 'score': eq_score}),
+            type('CR', (), {'name': 'Решение вопроса', 'score': pr_score}),
+            type('CR', (), {'name': 'Тон и вежливость', 'score': tp_score}),
+        ])
+
+    boost_msg = ""
+    if not use_ai:
+        example_sim = _compare_with_good_examples(chat)
+        if example_sim > 0.4:
+            boost_msg = " (сходство с эталонным диалогом учтено)"
 
     criteria_scores = [
         CriterionResult(name="Лишние вопросы и сообщения", score=eq_score, justification=eq_just),
         CriterionResult(name="Решение вопроса", score=pr_score, justification=pr_just),
         CriterionResult(name="Тон и вежливость", score=tp_score, justification=tp_just),
     ]
-
-    all_strengths = list(dict.fromkeys(eq_str + pr_str + tp_str))
-    all_weaknesses = list(dict.fromkeys(eq_weak + pr_weak + tp_weak))
-
-    recommendations = _generate_recommendations(all_weaknesses, criteria_scores)
 
     total_score = calculate_total_score(criteria_scores)
 
@@ -671,8 +718,8 @@ def _evaluate_chat(chat: Chat) -> ChatEvaluation:
         date=chat.date,
         criteria_scores=criteria_scores,
         total_score=total_score,
-        strengths=all_strengths,
-        weaknesses=all_weaknesses,
+        strengths=all_str,
+        weaknesses=all_weak,
         recommendations=recommendations,
         summary=summary,
     )
