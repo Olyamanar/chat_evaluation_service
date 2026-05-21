@@ -212,6 +212,24 @@ def _client_expressed_problem(client_text: str) -> bool:
 def _client_needs_apology(client_text: str) -> bool:
     tl = client_text.lower()
 
+    third_party_services = ["мой налог", "фнс", "сбербанк", "тинькофф", "альфа", "втб",
+        "телеграм", "telegram", "банк", "приложение заказчика"]
+    if any(p in tl for p in third_party_services):
+        return False
+
+    payment_absence = ["нет задания", "нет акта", "не пришла выплата", "не поступила выплата",
+        "не пришли деньги", "деньги не поступили", "нет выплаты", "нет задания на выплату"]
+    if any(p in tl for p in payment_absence):
+        return False
+
+    interface_noise = ["возникла ошибка / сложность", "ошибка ввода",
+        "не уточнил суть обращ", "регистрация в qugo",
+        "нажата кнопка", "тематика обращения"]
+    tl_clean = tl
+    for noise in interface_noise:
+        tl_clean = tl_clean.replace(noise, "")
+    tl = tl_clean
+
     clearly_system = [
         "из-за вас", "из-за системы", "ваша система", "по вине",
         "баг", "глюч", "сбой",
@@ -227,11 +245,6 @@ def _client_needs_apology(client_text: str) -> bool:
     if any(p in tl for p in qugo_service_faults):
         return True
 
-    payment_absence = ["нет задания", "нет акта", "не пришла выплата", "не поступила выплата",
-        "не пришли деньги", "деньги не поступили", "нет выплаты", "нет задания на выплату"]
-    if any(p in tl for p in payment_absence):
-        return False
-
     doc_error_context = ["чек", "расчёт", "расчет", "квитанци",
         "тариф", "комисси", "процент", "лимит", "баланс"]
     has_doc_error_context = any(p in tl for p in doc_error_context)
@@ -241,6 +254,9 @@ def _client_needs_apology(client_text: str) -> bool:
             return True
 
     if "ошибка" in tl and not has_doc_error_context:
+        client_own_mistake = ["это ошибка", "моя ошибка", "я ошиб", "я ошибся", "ошибся в ввод", "ошибся при ввод"]
+        if any(p in tl for p in client_own_mistake):
+            return False
         return True
 
     return False
