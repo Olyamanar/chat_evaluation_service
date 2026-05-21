@@ -145,6 +145,7 @@ def _client_expressed_negative(client_text: str) -> tuple:
         "не помогаете", "ни кто не помогает", "никто не помогает",
         "устал ждать", "надоело", "задолбал",
         "ненормально", "неприемлемо", "возмутительно",
+        "уйду в другую", "уйду из", "увольняюсь", "менять работу",
         "ни кто не помогает",
     ]
     frustration_hits = sum(1 for p in frustration_phrases if p in tl)
@@ -400,6 +401,31 @@ def _detect_ignored_messages(chat: Chat) -> bool:
                 continue
             if any(p in next_text for p in follow_up_phrases):
                 return True
+
+    consecutive_client = 0
+    max_consecutive = 0
+    last_client_texts = []
+    for m in chat.messages:
+        if m.role == MessageRole.CLIENT:
+            text = m.text.lower()
+            skip = ["нажата кнопка", "отправил файл"]
+            if not any(p in text for p in skip) and len(m.text.strip()) > 40:
+                consecutive_client += 1
+                max_consecutive = max(max_consecutive, consecutive_client)
+                last_client_texts.append(m.text.lower())
+            else:
+                pass
+        elif m.role == MessageRole.EMPLOYEE:
+            consecutive_client = 0
+            last_client_texts = []
+
+    if max_consecutive >= 3:
+        combined = " ".join(last_client_texts)
+        if any(p in combined for p in
+               ["ужас", "отписк", "бред", "бесполезно", "надоело", "уйду",
+                "задолбал", "ненормально", "в суд", "жалоба"]):
+            return True
+
     return False
 
 
