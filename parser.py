@@ -738,14 +738,15 @@ def filter_chats_for_employee(chats: List[Chat], employee_name: str, max_chats: 
             chat.employee_name is not None
             and chat.employee_name.strip().lower() == emp_key
         )
-        if not is_assigned:
-            continue
 
         emp_msg_count = sum(
             1 for m in chat.messages
             if m.role == MessageRole.EMPLOYEE
             and m.sender.strip().lower() == emp_key
         )
+
+        if not is_assigned and emp_msg_count <= 3:
+            continue
 
         if emp_msg_count <= 3:
             continue
