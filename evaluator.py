@@ -138,7 +138,20 @@ def _client_expressed_negative(client_text: str) -> tuple:
     if imperative_hits > 0:
         reasons.append("повелительное наклонение")
 
-    return (swear_hits > 0 or aggressive_punct > 0 or imperative_hits > 0), reasons
+    frustration_phrases = [
+        "отписк", "бесполезно", "бред",
+        "уже месяц", "несколько раз писал", "10т", "десятки раз", "каждый раз",
+        "ни разу не помогли", "только отпис", "в суд", "жалоба",
+        "не помогаете", "ни кто не помогает", "никто не помогает",
+        "устал ждать", "надоело", "задолбал",
+        "ненормально", "неприемлемо", "возмутительно",
+        "ни кто не помогает",
+    ]
+    frustration_hits = sum(1 for p in frustration_phrases if p in tl)
+    if frustration_hits > 0:
+        reasons.append("фрустрация и недовольство")
+
+    return (swear_hits > 0 or aggressive_punct > 0 or imperative_hits > 0 or frustration_hits > 0), reasons
 
 
 def _get_employee_messages(chat: Chat) -> List[str]:
@@ -222,6 +235,11 @@ def _client_needs_apology(client_text: str) -> bool:
     if any(p in tl for p in payment_absence):
         return False
 
+    client_data_error = ["ошибка в карте", "некорректные данные", "неправильный номер карты",
+        "ошибся в реквизит", "ошибся в данных", "забыл карту", "не тот номер карты"]
+    if any(p in tl for p in client_data_error):
+        return False
+
     interface_noise = ["возникла ошибка / сложность", "ошибка ввода",
         "не уточнил суть обращ", "регистрация в qugo",
         "нажата кнопка", "тематика обращения"]
@@ -233,6 +251,7 @@ def _client_needs_apology(client_text: str) -> bool:
     clearly_system = [
         "из-за вас", "из-за системы", "ваша система", "по вине",
         "баг", "глюч", "сбой",
+        "два чека", "две чека", "два одинаковых", "две одинаковых", "дубликат чека", "два акта", "две акт",
     ]
     if any(p in tl for p in clearly_system):
         return True
@@ -319,9 +338,9 @@ def _evaluate_extra_questions(chat: Chat) -> tuple:
     strengths = []
     weaknesses = []
 
-    if generic_q_count >= 2:
+    if generic_q_count >= 2 and solution_hits < 2:
         penalty += 2.0
-        weaknesses.append("Задано 2+ уточняющих вопроса общего характера")
+        weaknesses.append("Задано 2+ уточняющих вопроса общего характера без конкретных решений")
         justifications.append(f"Обнаружено {generic_q_count} общих уточняющих вопросов")
 
     if total_questions > len(client_msgs) + 3 and solution_hits < 2:
@@ -481,7 +500,13 @@ def _evaluate_tone_politeness(chat: Chat) -> tuple:
     has_empathy = empathy_count > 0
 
     client_negative, neg_reasons = _client_expressed_negative(client_text)
-    operator_responded = has_apology or has_empathy or _count_phrase_hits(emp_text, SOLUTION_INDICATORS) >= 2
+    has_solution = _count_phrase_hits(emp_text, SOLUTION_INDICATORS) >= 2
+    operator_responded = has_apology or has_empathy or has_solution
+
+    if client_negative and not has_empathy and not has_apology:
+        frustration_only = any(r in neg_reasons for r in ["нецензурная лексика", "фрустрация и недовольство"])
+        if frustration_only:
+            operator_responded = False
 
     strengths = []
     weaknesses = []
