@@ -139,7 +139,7 @@ def _client_expressed_negative(client_text: str) -> tuple:
         reasons.append("повелительное наклонение")
 
     frustration_phrases = [
-        "отписк", "бесполезно", "бред",
+        "отписк", "бесполезно", "бред", "ужас", "ужасно",
         "уже месяц", "несколько раз писал", "10т", "десятки раз", "каждый раз",
         "ни разу не помогли", "только отпис", "в суд", "жалоба",
         "не помогаете", "ни кто не помогает", "никто не помогает",
@@ -381,6 +381,28 @@ def _evaluate_extra_questions(chat: Chat) -> tuple:
     return score, " ".join(justifications), strengths, weaknesses
 
 
+def _detect_ignored_messages(chat: Chat) -> bool:
+    follow_up_phrases = [
+        "ну что", "что там", "есть ответ", "почему молчите",
+        "ау", "алло", "вы тут", "вы тут?", "кто-нибудь",
+        "ответьте", "игнорируете", "проигнорировали",
+        "жду ответа", "жду вашего", "когда ответ", "сколько ждать",
+        "ужас", "отписк", "бред", "бесполезно", "надоело",
+    ]
+    for i in range(len(chat.messages) - 1):
+        msg = chat.messages[i]
+        next_msg = chat.messages[i + 1]
+        if msg.role == MessageRole.CLIENT and next_msg.role == MessageRole.CLIENT:
+            next_text = next_msg.text.lower()
+            skip_phrases = ["нажата кнопка", "отправил файл", "отправлена фотография",
+                "отправлен файл"]
+            if any(p in next_text for p in skip_phrases):
+                continue
+            if any(p in next_text for p in follow_up_phrases):
+                return True
+    return False
+
+
 def _evaluate_problem_resolution(chat: Chat) -> tuple:
     emp_msgs = _get_employee_messages(chat)
     client_msgs = _get_client_messages(chat)
@@ -513,6 +535,11 @@ def _evaluate_tone_politeness(chat: Chat) -> tuple:
     justifications = []
     penalty = 0.0
     bonus = 0.0
+
+    ignored_client = _detect_ignored_messages(chat)
+    if ignored_client:
+        penalty += 3.0
+        weaknesses.append("Оператор проигнорировал сообщение клиента и закрыл/не ответил на диалог")
 
     if client_negative and not operator_responded:
         penalty += 3.0
