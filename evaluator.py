@@ -227,16 +227,20 @@ def _client_needs_apology(client_text: str) -> bool:
     if any(p in tl for p in qugo_service_faults):
         return True
 
-    document_error_words = ["чек", "сумма", "расчёт", "расчет", "платёж", "платеж",
-        "документ", "начислен", "квитанци", "счёт", "счет",
+    payment_absence = ["нет задания", "нет акта", "не пришла выплата", "не поступила выплата",
+        "не пришли деньги", "деньги не поступили", "нет выплаты", "нет задания на выплату"]
+    if any(p in tl for p in payment_absence):
+        return False
+
+    doc_error_context = ["чек", "расчёт", "расчет", "квитанци",
         "тариф", "комисси", "процент", "лимит", "баланс"]
-    has_document_context = any(p in tl for p in document_error_words)
-    if has_document_context:
-        error_words = ["не пришла", "недополучен", "отклоняется", "не удалось"]
+    has_doc_error_context = any(p in tl for p in doc_error_context)
+    if has_doc_error_context:
+        error_words = ["недополучен", "отклоняется"]
         if any(p in tl for p in error_words):
             return True
 
-    if "ошибка" in tl and not has_document_context:
+    if "ошибка" in tl and not has_doc_error_context:
         return True
 
     return False
