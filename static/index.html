@@ -3,269 +3,391 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сервис оценки чатов сотрудников</title>
+    <title>Qugo — Оценка софт-скиллов поддержки</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         :root {
-            --primary: #2C3E50;
-            --primary-light: #34495E;
-            --accent: #3498DB;
-            --accent-hover: #2980B9;
-            --success: #27AE60;
-            --warning: #F39C12;
-            --danger: #E74C3C;
-            --bg: #F8F9FA;
+            --primary: #6C5CE7;
+            --primary-dark: #5A4BD1;
+            --primary-light: #A29BFE;
+            --primary-bg: #F0EEFF;
+            --accent: #00D2D3;
+            --success: #00B894;
+            --warning: #FDCB6E;
+            --danger: #E17055;
+            --bg: #F8F9FE;
             --card-bg: #FFFFFF;
-            --text: #2C3E50;
-            --text-light: #7F8C8D;
-            --border: #E0E0E0;
-            --shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --text: #2D3436;
+            --text-light: #636E72;
+            --text-muted: #B2BEC3;
+            --border: #DFE6E9;
+            --shadow: 0 4px 20px rgba(108, 92, 231, 0.08);
+            --shadow-lg: 0 8px 40px rgba(108, 92, 231, 0.12);
+            --radius: 16px;
+            --radius-sm: 10px;
         }
-        
+
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
+            min-height: 100vh;
         }
-        
+
         .header {
-            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             color: white;
-            padding: 20px 40px;
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.15);
+        }
+        .header-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 18px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
         }
-        
-        .header h1 { font-size: 22px; font-weight: 600; }
-        .header .subtitle { font-size: 13px; opacity: 0.8; margin-top: 2px; }
-        
-        .header-btn {
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        .header-divider {
+            width: 1px;
+            height: 28px;
             background: rgba(255,255,255,0.15);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
         }
-        .header-btn:hover { background: rgba(255,255,255,0.25); }
-        
-        .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
-        
-        .card {
-            background: var(--card-bg);
-            border-radius: 10px;
-            box-shadow: var(--shadow);
-            padding: 24px;
-            margin-bottom: 24px;
+        .header-title {
+            font-size: 15px;
+            font-weight: 500;
+            opacity: 0.85;
         }
-        
-        .card-title {
-            font-size: 16px;
+        .header-badge {
+            background: rgba(108, 92, 231, 0.25);
+            border: 1px solid rgba(108, 92, 231, 0.4);
+            color: var(--primary-light);
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
             font-weight: 600;
-            color: var(--primary);
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 2px solid var(--bg);
         }
-        
+
+        .container { max-width: 1280px; margin: 0 auto; padding: 32px 32px 60px; }
+
         .steps {
             display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 32px;
+            background: var(--card-bg);
+            border-radius: 40px;
+            padding: 6px;
+            box-shadow: var(--shadow);
+            width: fit-content;
         }
-        
         .step {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 10px 22px;
+            border-radius: 34px;
             font-size: 13px;
-            font-weight: 500;
-            background: var(--bg);
-            color: var(--text-light);
+            font-weight: 600;
+            color: var(--text-muted);
             transition: all 0.3s;
         }
-        .step.active { background: var(--accent); color: white; }
-        .step.completed { background: var(--success); color: white; }
+        .step.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.35);
+        }
+        .step.completed { color: var(--success); }
         .step-number {
-            width: 24px; height: 24px;
+            width: 22px; height: 22px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: 700;
-            background: rgba(255,255,255,0.3);
+            font-size: 11px; font-weight: 700;
+            background: rgba(255,255,255,0.15);
         }
-        
+        .step.active .step-number { background: rgba(255,255,255,0.25); }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 28px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(108, 92, 231, 0.04);
+        }
+        .card-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 22px;
+            background: linear-gradient(180deg, var(--primary), var(--primary-light));
+            border-radius: 2px;
+        }
+
         .upload-zone {
             border: 2px dashed var(--border);
-            border-radius: 10px;
-            padding: 40px;
+            border-radius: var(--radius-sm);
+            padding: 48px 40px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
             background: var(--bg);
         }
         .upload-zone:hover, .upload-zone.dragover {
-            border-color: var(--accent);
-            background: rgba(52, 152, 219, 0.05);
+            border-color: var(--primary-light);
+            background: var(--primary-bg);
+            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.08);
         }
         .upload-zone input { display: none; }
-        .upload-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+        .upload-icon {
+            width: 64px; height: 64px;
+            margin: 0 auto 16px;
+            background: var(--primary-bg);
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px;
+        }
         .upload-text { color: var(--text-light); font-size: 14px; }
-        .upload-text strong { color: var(--accent); }
-        
-        .form-group { margin-bottom: 16px; }
+        .upload-text strong { color: var(--primary); font-weight: 600; }
+
+        .form-group { margin-bottom: 18px; }
         .form-label {
             display: block;
             font-size: 13px;
             font-weight: 600;
             color: var(--text-light);
-            margin-bottom: 6px;
+            margin-bottom: 7px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        
+
         select, input[type="number"], input[type="text"] {
             width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            padding: 11px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
             font-size: 14px;
+            font-family: inherit;
             color: var(--text);
             background: white;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
         select:focus, input:focus {
             outline: none;
-            border-color: var(--accent);
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
         }
-        
+
         .btn {
-            padding: 10px 24px;
+            padding: 11px 26px;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
             font-size: 14px;
             font-weight: 600;
+            font-family: inherit;
             cursor: pointer;
             transition: all 0.2s;
             display: inline-flex;
             align-items: center;
             gap: 8px;
         }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-        .btn-accent { background: var(--accent); color: white; opacity: 0.75; }
-        .btn-accent:hover { opacity: 1; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-success:hover:not(:disabled) { background: #219a52; }
-        .btn-warning { background: var(--warning); color: white; }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.45);
+            transform: translateY(-1px);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #00a884);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
+        }
+        .btn-success:hover:not(:disabled) { transform: translateY(-1px); }
         .btn-outline {
             background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
+            border: 1.5px solid var(--border);
+            color: var(--text-light);
         }
-        .btn-outline:hover:not(:disabled) { background: var(--bg); }
-        
+        .btn-outline:hover:not(:disabled) { background: var(--bg); border-color: var(--primary-light); color: var(--primary); }
+
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
-        
-        .progress-container { margin: 20px 0; }
+
+        .ai-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #F0EEFF, #E8E4FF);
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(108, 92, 231, 0.12);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ai-toggle:hover { border-color: var(--primary-light); }
+        .ai-toggle input[type="checkbox"] {
+            width: 20px; height: 20px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .ai-toggle-label {
+            font-size: 14px; font-weight: 500; color: var(--text);
+        }
+        .ai-toggle-desc {
+            font-size: 12px; color: var(--text-light); margin-top: 2px;
+        }
+
+        .progress-container { margin: 24px 0; }
         .progress-bar-bg {
             background: var(--bg);
-            border-radius: 10px;
-            height: 24px;
+            border-radius: 12px;
+            height: 28px;
             overflow: hidden;
+            border: 1px solid var(--border);
         }
         .progress-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, var(--accent), var(--success));
-            border-radius: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 12px;
             transition: width 0.5s;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
         }
         .progress-text {
             text-align: center;
-            margin-top: 8px;
+            margin-top: 10px;
             font-size: 13px;
             color: var(--text-light);
         }
-        
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(108, 92, 231, 0.04);
+        }
+        .summary-card-value {
+            font-size: 36px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .summary-card-label {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
         .results-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 13px;
         }
         .results-table th {
-            background: var(--primary);
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
             color: white;
-            padding: 10px 12px;
+            padding: 12px 14px;
             text-align: left;
             font-weight: 600;
-            white-space: nowrap;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
+        .results-table th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+        .results-table th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
         .results-table td {
-            padding: 10px 12px;
+            padding: 12px 14px;
             border-bottom: 1px solid var(--border);
-            vertical-align: top;
+            vertical-align: middle;
         }
-        .results-table tr:hover td { background: rgba(52, 152, 219, 0.04); }
-        
-        .chat-expanded {
-            background: var(--bg) !important;
-        }
-        .chat-expanded-row td {
-            padding: 0 !important;
-        }
+        .results-table tbody tr:hover td { background: var(--primary-bg); }
+        .results-table tbody tr:last-child td:first-child { border-radius: 0 0 0 var(--radius-sm); }
+        .results-table tbody tr:last-child td:last-child { border-radius: 0 0 var(--radius-sm) 0; }
+
+        .chat-expanded-row td { padding: 0 !important; }
         .chat-expanded-content {
-            padding: 16px 24px;
+            padding: 20px 28px;
             max-height: 600px;
             overflow-y: auto;
+            background: var(--bg);
         }
-        
+
         .score-badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 32px; height: 32px;
-            border-radius: 50%;
-            font-size: 14px;
+            width: 34px; height: 34px;
+            border-radius: 10px;
+            font-size: 15px;
             font-weight: 700;
             color: white;
         }
         .score-1 { background: var(--danger); }
-        .score-3 { background: var(--warning); }
+        .score-3 { background: #E67E22; }
         .score-5 { background: var(--success); }
-        
+
         .total-score {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 4px 12px;
-            border-radius: 16px;
+            padding: 5px 14px;
+            border-radius: 20px;
             font-size: 15px;
             font-weight: 700;
             color: white;
         }
         .total-0 { background: var(--danger); }
-        .total-30 { background: var(--warning); }
+        .total-30 { background: #E67E22; }
         .total-100 { background: var(--success); }
-        
+
         .section-hidden { display: none; }
-        
+
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
+            background: rgba(26, 26, 46, 0.6);
+            backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -275,110 +397,93 @@
             transition: opacity 0.3s;
         }
         .modal-overlay.active { opacity: 1; pointer-events: all; }
-        
         .modal {
             background: white;
-            border-radius: 12px;
-            padding: 24px;
+            border-radius: var(--radius);
+            padding: 32px;
             max-width: 960px;
             width: 95%;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            box-shadow: var(--shadow-lg);
         }
         .modal-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 16px;
+            color: var(--primary-dark);
+            margin-bottom: 20px;
         }
         .modal-close {
             float: right;
-            background: none;
+            background: var(--bg);
             border: none;
-            font-size: 20px;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            font-size: 18px;
             cursor: pointer;
             color: var(--text-light);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
         }
-        
+        .modal-close:hover { background: var(--danger); color: white; }
+
         .chat-message {
-            padding: 8px 12px;
-            border-radius: 8px;
+            padding: 10px 14px;
+            border-radius: 12px;
             margin-bottom: 6px;
             font-size: 13px;
-            max-width: 100%;
+            max-width: 85%;
         }
         .msg-employee {
-            background: #E8F5E9;
+            background: linear-gradient(135deg, #F0EEFF, #E8E4FF);
             margin-left: auto;
-            border: 1px solid #C8E6C9;
+            border: 1px solid rgba(108, 92, 231, 0.15);
         }
         .msg-client {
-            background: #E3F2FD;
+            background: white;
             margin-right: auto;
-            border: 1px solid #BBDEFB;
+            border: 1px solid var(--border);
         }
         .msg-sender {
             font-size: 11px;
-            font-weight: 600;
-            color: var(--text-light);
-            margin-bottom: 2px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 3px;
         }
+        .msg-client .msg-sender { color: var(--text-light); }
         .msg-text { word-break: break-word; }
-        
-        .criteria-list { margin: 12px 0; }
+
+        .criteria-list { margin: 16px 0; }
         .criteria-item {
             display: flex;
             align-items: flex-start;
-            gap: 12px;
-            padding: 10px;
-            border-radius: 8px;
+            gap: 14px;
+            padding: 14px;
+            border-radius: var(--radius-sm);
             margin-bottom: 8px;
             background: var(--bg);
+            border: 1px solid rgba(108, 92, 231, 0.04);
         }
-        .criteria-name { font-weight: 600; font-size: 13px; }
+        .criteria-name { font-weight: 600; font-size: 13px; color: var(--text); }
         .criteria-just { font-size: 12px; color: var(--text-light); margin-top: 4px; }
-        
+
         .tag {
             display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
+            padding: 5px 14px;
+            border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
-            margin: 2px;
+            margin: 3px;
         }
-        .tag-green { background: #E8F5E9; color: #2E7D32; }
-        .tag-red { background: #FFEBEE; color: #C62828; }
-        .tag-blue { background: #E3F2FD; color: #1565C0; }
-        
-        .summary-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .summary-card {
-            background: var(--bg);
-            border-radius: 8px;
-            padding: 16px;
-            text-align: center;
-        }
-        .summary-card-value {
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--primary);
-        }
-        .summary-card-label {
-            font-size: 12px;
-            color: var(--text-light);
-            margin-top: 4px;
-        }
-        
+        .tag-green { background: #E8F8F5; color: #00B894; border: 1px solid #B2DFDB; }
+        .tag-red { background: #FFF0ED; color: #E17055; border: 1px solid #FFCDD2; }
+        .tag-blue { background: #F0EEFF; color: var(--primary); border: 1px solid rgba(108, 92, 231, 0.15); }
+
         .examples-list { margin-top: 16px; }
         .example-item {
-            padding: 12px;
+            padding: 14px;
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
@@ -386,19 +491,19 @@
         }
         .example-info { font-size: 13px; }
         .example-info small { color: var(--text-light); }
-        
+
         .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
+            padding: 14px 18px;
+            border-radius: var(--radius-sm);
             margin-bottom: 16px;
             font-size: 13px;
         }
-        .alert-info { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
-        .alert-warning { background: #FFF8E1; color: #F57F17; border: 1px solid #FFE082; }
-        .alert-error { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
-        .alert-success { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
-        
-        .loading { 
+        .alert-info { background: var(--primary-bg); color: var(--primary-dark); border: 1px solid rgba(108, 92, 231, 0.15); }
+        .alert-warning { background: #FFF8E1; color: #E67E22; border: 1px solid #FFE082; }
+        .alert-error { background: #FFF0ED; color: var(--danger); border: 1px solid #FFCDD2; }
+        .alert-success { background: #E8F8F5; color: var(--success); border: 1px solid #B2DFDB; }
+
+        .loading {
             display: inline-block;
             width: 16px; height: 16px;
             border: 2px solid rgba(255,255,255,0.3);
@@ -407,81 +512,67 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .row { display: flex; gap: 16px; flex-wrap: wrap; }
-        .col { flex: 1; min-width: 200px; }
-        
-        .format-hint {
-            background: var(--bg);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 12px;
-            color: var(--text-light);
-            margin-top: 12px;
-        }
-        .format-hint code {
-            background: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Consolas', monospace;
-            font-size: 11px;
-        }
-        
+
+        .row { display: flex; gap: 18px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 220px; }
+
         .mark-good-btn {
             background: none;
-            border: 1px solid var(--success);
+            border: 1.5px solid var(--success);
             color: var(--success);
-            padding: 4px 12px;
-            border-radius: 4px;
+            padding: 5px 14px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
             transition: all 0.2s;
         }
         .mark-good-btn:hover { background: var(--success); color: white; }
-        .mark-good-btn.marked {
-            background: var(--success);
-            color: white;
-            border-color: var(--success);
+        .mark-good-btn.marked { background: var(--success); color: white; }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 12px;
+            border-radius: 8px;
         }
-        
-        .offline-badge {
-            background: var(--success);
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-        
+
         @media (max-width: 768px) {
-            .header { padding: 15px 20px; }
-            .header h1 { font-size: 18px; }
-            .container { padding: 16px; }
-            .card { padding: 16px; }
+            .header-inner { padding: 14px 16px; }
+            .header-title { display: none; }
+            .container { padding: 20px 16px; }
+            .card { padding: 20px; }
             .row { flex-direction: column; }
             .col { min-width: 100%; }
+            .steps { width: 100%; overflow-x: auto; }
         }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div>
-        <h1>Сервис оценки чатов</h1>
-        <div class="subtitle">Массовая оценка диалогов сотрудников поддержки <span class="offline-badge">Работает офлайн</span></div>
+    <div class="header-inner">
+        <div class="header-left">
+            <div class="logo">Qugo</div>
+            <div class="header-divider"></div>
+            <div class="header-title">Оценка софт-скиллов поддержки</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div id="aiUsage" class="header-badge" style="cursor:default;font-size:11px;"></div>
+            <button class="header-badge" onclick="showExamples()">Эталонные диалоги</button>
+        </div>
     </div>
-    <button class="header-btn" onclick="showExamples()">Эталонные диалоги</button>
 </div>
 
 <div class="container">
     <div class="steps" id="steps">
         <div class="step active" data-step="1">
             <span class="step-number">1</span>
-            Загрузка файла
+            Загрузка
         </div>
         <div class="step" data-step="2">
             <span class="step-number">2</span>
-            Настройка оценки
+            Настройка
         </div>
         <div class="step" data-step="3">
             <span class="step-number">3</span>
@@ -493,9 +584,7 @@
         <div class="card">
             <div class="card-title">Загрузка файла с чатами</div>
             <div class="alert alert-info">
-                Загрузите файл TXT или XML с выгрузкой чатов. Сервис автоматически определит сотрудников и диалоги.
-                Сообщения от бота «Поддержка клиентов» будут исключены из оценки.
-                <br><strong>Никаких API-ключей не нужно — оценка работает полностью на вашем компьютере.</strong>
+                Загрузите выгрузку чатов Яндекс.Чатов. Сервис автоматически определит сотрудников и диалоги, оценит софт-скиллы при отработке возмущений исполнителей.
             </div>
             <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
                 <input type="file" id="fileInput" accept=".txt,.xml" onchange="handleFileUpload(event)">
@@ -505,16 +594,7 @@
                     <small>Поддерживаемые форматы: TXT, XML</small>
                 </div>
             </div>
-            <div id="uploadResult" class="section-hidden" style="margin-top: 16px;"></div>
-            
-            <div class="format-hint">
-                <strong>Поддерживаемые форматы TXT:</strong><br>
-                <code>[12.05.2024 10:30:15] Имя Отправителя: текст сообщения</code><br>
-                <code>[12.05.2024 10:30:15] Имя (сотрудник): текст сообщения</code><br>
-                <code>10:30 - Имя: текст сообщения</code><br>
-                <strong>Поддерживаемые форматы XML:</strong><br>
-                <code>&lt;chat employee="Имя"&gt;&lt;message from="Имя" role="employee"&gt;текст&lt;/message&gt;&lt;/chat&gt;</code>
-            </div>
+            <div id="uploadResult" class="section-hidden" style="margin-top: 18px;"></div>
         </div>
     </div>
 
@@ -524,7 +604,7 @@
             <div class="row">
                 <div class="col">
                     <div class="form-group">
-                        <label class="form-label">Сотрудник для оценки</label>
+                        <label class="form-label">Сотрудник</label>
                         <select id="employeeSelect" onchange="onEmployeeChange()">
                             <option value="">Выберите сотрудника</option>
                         </select>
@@ -532,13 +612,20 @@
                 </div>
                 <div class="col">
                     <div class="form-group">
-                        <label class="form-label">Количество диалогов для оценки</label>
+                        <label class="form-label">Количество диалогов</label>
                         <input type="number" id="maxChats" value="100" min="1" max="1000">
                     </div>
                 </div>
             </div>
-            <div id="employeeInfo" class="section-hidden" style="margin-top: 12px;"></div>
-            <div class="btn-group" style="margin-top: 16px;">
+            <label class="ai-toggle">
+                <input type="checkbox" id="useAiToggle">
+                <div>
+                    <div class="ai-toggle-label">ИИ-оценка (Qwen)</div>
+                    <div class="ai-toggle-desc">Точнее определяет эмпатию и отработку возмущений. ~5 сек/диалог.</div>
+                </div>
+            </label>
+            <div id="employeeInfo" class="section-hidden" style="margin-top: 14px;"></div>
+            <div class="btn-group" style="margin-top: 20px;">
                 <button class="btn btn-primary" id="startEvalBtn" onclick="startEvaluation()" disabled>
                     Начать оценку
                 </button>
@@ -549,13 +636,13 @@
 
     <div id="section-results" class="section-hidden">
         <div class="summary-cards" id="summaryCards"></div>
-        
+
         <div class="card">
-            <div class="card-title">Результаты оценки</div>
-            <div class="btn-group" style="margin-bottom: 16px;">
+            <div class="card-title">Результаты оценки софт-скиллов</div>
+            <div class="btn-group" style="margin-bottom: 18px;">
                 <button class="btn btn-success" onclick="exportExcel()">Экспорт в Excel</button>
                 <button class="btn btn-outline" onclick="goToStep(2)">Другая оценка</button>
-                <button class="btn btn-primary" onclick="resetAll(); goToStep(1)">Новый файл</button>
+                <button class="btn btn-outline" onclick="resetAll(); goToStep(1)">Новый файл</button>
             </div>
             <div style="overflow-x: auto;">
                 <table class="results-table" id="resultsTable">
@@ -563,11 +650,9 @@
                         <tr>
                             <th>#</th>
                             <th>ID</th>
-                            <th>Лишние вопросы</th>
-                            <th>Решение вопроса</th>
-                            <th>Тон и вежливость</th>
+                            <th>Софт-скиллы</th>
                             <th>Итого</th>
-                            <th style="min-width: 200px;">Действия / Диалог</th>
+                            <th style="min-width: 220px;">Действия</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody"></tbody>
@@ -587,10 +672,9 @@
 <div class="modal-overlay" id="examplesModal">
     <div class="modal">
         <button class="modal-close" onclick="closeModal('examplesModal')">&times;</button>
-        <div class="modal-title">Эталонные диалоги (для дообучения)</div>
+        <div class="modal-title">Эталонные диалоги</div>
         <div class="alert alert-info">
-            Отмечайте хорошие диалоги во время оценки. Они будут использоваться как эталонные примеры —
-            диалоги, похожие на эталонные, получат более высокую оценку.
+            Отмечайте хорошие диалоги при оценке. Они будут использоваться как эталонные примеры.
         </div>
         <div id="examplesList" class="examples-list"></div>
     </div>
@@ -598,6 +682,7 @@
 
 <script>
 const API = '';
+const VERSION = 'v4';
 let currentFileId = null;
 let currentSessionId = null;
 let currentResults = [];
@@ -609,7 +694,7 @@ function goToStep(step) {
     const sectionMap = {1: 'upload', 2: 'config', 3: 'results'};
     const section = document.getElementById('section-' + sectionMap[step]);
     if (section) section.classList.remove('section-hidden');
-    
+
     document.querySelectorAll('.step').forEach(s => {
         const sNum = parseInt(s.dataset.step);
         s.classList.remove('active', 'completed');
@@ -634,14 +719,11 @@ function resetAll() {
     markedChats = new Set();
     viewedChats = new Set();
     clearUploadResult();
-
     const select = document.getElementById('employeeSelect');
     select.innerHTML = '<option value="">Выберите сотрудника</option>';
-
     const btn = document.getElementById('startEvalBtn');
     btn.disabled = true;
     btn.textContent = 'Начать оценку';
-
     document.getElementById('employeeInfo').classList.add('section-hidden');
     document.getElementById('resultsBody').innerHTML = '';
     document.getElementById('summaryCards').innerHTML = '';
@@ -658,44 +740,38 @@ function loadExamples() {
         .then(data => {
             const list = document.getElementById('examplesList');
             if (!data.examples || data.examples.length === 0) {
-                list.innerHTML = '<div class="alert alert-warning">Нет сохранённых эталонных диалогов. Отметьте хорошие диалоги при оценке.</div>';
+                list.innerHTML = '<div class="alert alert-warning">Нет сохранённых эталонных диалогов.</div>';
                 return;
             }
             list.innerHTML = data.examples.map(ex => `
                 <div class="example-item">
                     <div class="example-info">
-                        <strong>${ex.employee_name}</strong> — Диалог #${ex.chat_id}
-                        <br><small>Добавлен: ${new Date(ex.added_at).toLocaleString('ru')}</small>
+                        <strong>${ex.employee_name}</strong> — #${ex.chat_id}
                         <br><small>Сообщений: ${ex.messages ? ex.messages.length : 0}</small>
                     </div>
-                    <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px; border-color: var(--danger); color: var(--danger);" onclick="deleteExample('${ex.id}')">Удалить</button>
+                    <button class="btn btn-outline btn-sm" style="border-color: var(--danger); color: var(--danger);" onclick="deleteExample('${ex.id}')">Удалить</button>
                 </div>
             `).join('');
         });
 }
 
 function deleteExample(id) {
-    if (!confirm('Удалить этот эталонный диалог?')) return;
+    if (!confirm('Удалить?')) return;
     fetch(API + '/api/good-examples/' + id, {method: 'DELETE'})
         .then(() => loadExamples());
 }
 
-function closeModal(id) {
-    document.getElementById(id).classList.remove('active');
-}
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.classList.remove('active');
-    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('active'); });
 });
 
 const uploadZone = document.getElementById('uploadZone');
 uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
 uploadZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragover');
+    e.preventDefault(); uploadZone.classList.remove('dragover');
     if (e.dataTransfer.files.length > 0) {
         document.getElementById('fileInput').files = e.dataTransfer.files;
         handleFileUpload({target: {files: e.dataTransfer.files}});
@@ -705,32 +781,22 @@ uploadZone.addEventListener('drop', (e) => {
 function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
     const ext = file.name.split('.').pop().toLowerCase();
-    if (!['txt', 'xml'].includes(ext)) {
-        showUploadResult('Поддерживаются только файлы TXT и XML', 'error');
-        return;
-    }
-    
+    if (!['txt', 'xml'].includes(ext)) { showUploadResult('Поддерживаются только TXT и XML', 'error'); return; }
+
     const formData = new FormData();
     formData.append('file', file);
-    
-    showUploadResult('Загрузка и парсинг файла...', 'info');
-    
+    showUploadResult('Загрузка и парсинг...', 'info');
+
     fetch(API + '/api/upload', {method: 'POST', body: formData})
         .then(r => r.json())
         .then(data => {
-            if (data.detail) {
-                showUploadResult(data.detail, 'error');
-                return;
-            }
+            if (data.detail) { showUploadResult(data.detail, 'error'); return; }
             currentFileId = data.file_id;
             showUploadResult(
-                `Файл загружен: <strong>${data.filename}</strong><br>` +
-                `Всего диалогов: ${data.total_chats} | Найдено сотрудников: ${data.employees.length}`,
+                `<strong>${data.filename}</strong> загружен. ${data.total_chats} диалогов, ${data.employees.length} сотрудников.`,
                 'success'
             );
-            
             const select = document.getElementById('employeeSelect');
             select.innerHTML = '<option value="">Выберите сотрудника</option>';
             data.employees.forEach(emp => {
@@ -738,12 +804,9 @@ function handleFileUpload(event) {
                 const count = info ? info.chat_count : '?';
                 select.innerHTML += `<option value="${emp}">${emp} (${count} диалогов)</option>`;
             });
-            
             goToStep(2);
         })
-        .catch(err => {
-            showUploadResult('Ошибка загрузки: ' + err.message, 'error');
-        });
+        .catch(err => showUploadResult('Ошибка: ' + err.message, 'error'));
 }
 
 function showUploadResult(html, type) {
@@ -756,105 +819,117 @@ function onEmployeeChange() {
     const emp = document.getElementById('employeeSelect').value;
     const btn = document.getElementById('startEvalBtn');
     const info = document.getElementById('employeeInfo');
-    
     if (emp) {
         btn.disabled = false;
         info.classList.remove('section-hidden');
-        info.innerHTML = `<div class="alert alert-info">Будут оценены диалоги сотрудника <strong>${emp}</strong>. Сообщения от бота исключены.</div>`;
-    } else {
-        btn.disabled = true;
-        info.classList.add('section-hidden');
-    }
+        info.innerHTML = `<div class="alert alert-info">Будут оценены диалоги <strong>${emp}</strong>. Оценка софт-скиллов: эмпатия, отработка возмущений, решение проблемы.</div>`;
+    } else { btn.disabled = true; info.classList.add('section-hidden'); }
 }
 
 function startEvaluation() {
     const employeeName = document.getElementById('employeeSelect').value;
     const maxChats = parseInt(document.getElementById('maxChats').value) || 10;
-    
+    const useAi = document.getElementById('useAiToggle').checked;
     if (!employeeName) { alert('Выберите сотрудника'); return; }
     if (!currentFileId) { alert('Загрузите файл'); return; }
-    
+
     const btn = document.getElementById('startEvalBtn');
+    const btnGroup = btn.parentElement;
     btn.disabled = true;
     btn.innerHTML = '<span class="loading"></span> Оценка...';
-    
+
+    const progressHtml = `
+        <div class="progress-container" id="evalProgress">
+            <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width: 0%">0%</div></div>
+            <div class="progress-text" id="progressText">Оценка диалогов${useAi ? ' с ИИ-анализом' : ''}...</div>
+        </div>`;
+    const existing = document.getElementById('evalProgress');
+    if (existing) existing.remove();
+    btnGroup.insertAdjacentHTML('beforebegin', progressHtml);
+
     fetch(API + '/api/evaluate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            file_id: currentFileId,
-            employee_name: employeeName,
-            max_chats: maxChats
-        })
+        body: JSON.stringify({ file_id: currentFileId, employee_name: employeeName, max_chats: maxChats, use_ai: useAi })
     })
     .then(r => r.json())
     .then(data => {
-        if (data.detail) {
-            alert('Ошибка: ' + data.detail);
-            btn.disabled = false;
-            btn.textContent = 'Начать оценку';
-            return;
-        }
-        currentSessionId = data.session_id;
-        currentResults = data.results;
-        showResults(data.results);
+        if (data.detail) { alert('Ошибка: ' + data.detail); resetBtn(btn); return; }
+        pollProgress(data.task_id, employeeName, btn);
     })
-    .catch(err => {
-        alert('Ошибка: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Начать оценку';
-    });
+    .catch(err => { alert('Ошибка: ' + err.message); resetBtn(btn); });
+}
+
+function resetBtn(btn) {
+    btn.disabled = false;
+    btn.textContent = 'Начать оценку';
+    const p = document.getElementById('evalProgress');
+    if (p) p.remove();
+}
+
+function pollProgress(taskId, employeeName, btn) {
+    const interval = setInterval(() => {
+        fetch(API + '/api/evaluate/' + taskId + '/progress')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'running') {
+                    document.getElementById('progressText').textContent = 'Оценка диалогов... Подождите, не закрывайте страницу.';
+                } else if (data.status === 'done') {
+                    clearInterval(interval);
+                    document.getElementById('progressFill').style.width = '100%';
+                    document.getElementById('progressFill').textContent = '100%';
+                    document.getElementById('progressText').textContent = 'Готово! Загрузка результатов...';
+                    currentSessionId = taskId;
+                    fetch(API + '/api/results/' + taskId)
+                        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                        .then(resultData => {
+                            if (!resultData.results || !Array.isArray(resultData.results)) throw new Error('Нет результатов');
+                            currentResults = resultData.results;
+                            showResults(resultData.results);
+                            resetBtn(btn);
+                        })
+                        .catch(err => { clearInterval(interval); alert('Ошибка: ' + err.message); resetBtn(btn); });
+                } else if (data.status === 'error') {
+                    clearInterval(interval);
+                    alert('Ошибка оценки: ' + (data.error || ''));
+                    resetBtn(btn);
+                }
+            });
+    }, 2000);
 }
 
 function showResults(results) {
+    if (!results || !Array.isArray(results) || results.length === 0) { alert('Результаты не получены'); return; }
     goToStep(3);
-    
+
     const avg = results.reduce((s, r) => s + r.total_score, 0) / results.length;
     const perfect = results.filter(r => r.total_score === 100).length;
     const bad = results.filter(r => r.total_score === 0).length;
-    
+
     document.getElementById('summaryCards').innerHTML = `
-        <div class="summary-card">
-            <div class="summary-card-value">${results.length}</div>
-            <div class="summary-card-label">Диалогов оценено</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-card-value" style="color: ${avg >= 70 ? '#27AE60' : avg >= 40 ? '#F39C12' : '#E74C3C'}">${avg.toFixed(1)}</div>
-            <div class="summary-card-label">Средний балл</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-card-value" style="color: #27AE60">${perfect}</div>
-            <div class="summary-card-label">Отличных (100)</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-card-value" style="color: #E74C3C">${bad}</div>
-            <div class="summary-card-label">Критичных (0)</div>
-        </div>
+        <div class="summary-card"><div class="summary-card-value">${results.length}</div><div class="summary-card-label">Диалогов оценено</div></div>
+        <div class="summary-card"><div class="summary-card-value" style="-webkit-text-fill-color: ${avg >= 70 ? '#00B894' : avg >= 40 ? '#E67E22' : '#E17055'}">${avg.toFixed(1)}</div><div class="summary-card-label">Средний балл</div></div>
+        <div class="summary-card"><div class="summary-card-value" style="-webkit-text-fill-color: #00B894">${perfect}</div><div class="summary-card-label">Отличных (100)</div></div>
+        <div class="summary-card"><div class="summary-card-value" style="-webkit-text-fill-color: #E17055">${bad}</div><div class="summary-card-label">Критичных (0)</div></div>
     `;
-    
+
     const tbody = document.getElementById('resultsBody');
     tbody.innerHTML = results.map((r, i) => `
         <tr id="row-${i}">
             <td>${i + 1}</td>
             <td>#${r.chat_id}</td>
             <td>${renderScoreBadge(r.criteria_scores[0].score)}</td>
-            <td>${renderScoreBadge(r.criteria_scores[1].score)}</td>
-            <td>${renderScoreBadge(r.criteria_scores[2].score)}</td>
             <td>${renderTotalScore(r.total_score)}</td>
             <td>
-                <button class="btn btn-outline" style="padding: 4px 12px; font-size: 12px;" onclick="showDetail(${i})">Подробнее</button>
-                <button class="btn ${viewedChats.has(r.chat_id) ? 'btn-accent' : 'btn-outline'} btn-dialog" style="padding: 4px 12px; font-size: 12px; ${viewedChats.has(r.chat_id) ? '' : 'border-color: var(--accent); color: var(--accent);'}" onclick="toggleChatText(${i})" id="toggle-${i}">${viewedChats.has(r.chat_id) ? 'Просмотрен' : 'Диалог'}</button>
+                <button class="btn btn-outline btn-sm" onclick="showDetail(${i})">Подробнее</button>
+                <button class="btn btn-outline btn-sm" onclick="toggleChatText(${i})" id="toggle-${i}" style="border-color: var(--primary); color: var(--primary);">Диалог</button>
                 <button class="mark-good-btn ${markedChats.has(r.chat_id) ? 'marked' : ''}" id="mark-${r.chat_id}" onclick="markGood('${r.chat_id}')">
                     ${markedChats.has(r.chat_id) ? 'Сохранён' : 'Эталон'}
                 </button>
             </td>
         </tr>
         <tr id="chat-row-${i}" class="section-hidden chat-expanded-row">
-            <td colspan="7">
-                <div class="chat-expanded-content" id="chat-content-${i}">
-                    <div style="text-align: center; color: var(--text-light); padding: 20px;">Загрузка...</div>
-                </div>
-            </td>
+            <td colspan="5"><div class="chat-expanded-content" id="chat-content-${i}"><div style="text-align:center;color:var(--text-light);padding:20px;">Загрузка...</div></div></td>
         </tr>
     `).join('');
 }
@@ -863,34 +938,39 @@ function toggleChatText(index) {
     const chatRow = document.getElementById('chat-row-' + index);
     const toggleBtn = document.getElementById('toggle-' + index);
     const r = currentResults[index];
-    
+    if (!chatRow) return;
+
     if (!chatRow.classList.contains('section-hidden')) {
         chatRow.classList.add('section-hidden');
-        toggleBtn.textContent = viewedChats.has(r.chat_id) ? 'Просмотрен' : 'Диалог';
+        toggleBtn.textContent = 'Диалог';
         return;
     }
-    
+
     chatRow.classList.remove('section-hidden');
     toggleBtn.textContent = 'Скрыть';
-    
+
     const content = document.getElementById('chat-content-' + index);
     if (content.dataset.loaded) return;
     content.dataset.loaded = '1';
-    
     if (!r || !currentSessionId) return;
-    
-    renderChatMessagesInline(content, r.chat_id);
-    
+
+    fetch(API + '/api/chat/' + currentSessionId + '/' + r.chat_id)
+        .then(res => res.json())
+        .then(data => {
+            if (data.chat && data.chat.messages) {
+                content.innerHTML = data.chat.messages
+                    .filter(m => m.role !== 'bot')
+                    .map(m => {
+                        const cls = m.role === 'employee' ? 'msg-employee' : 'msg-client';
+                        const label = m.role === 'employee' ? 'Оператор' : 'Исполнитель';
+                        return '<div class="chat-message ' + cls + '"><div class="msg-sender">' + label + ' (' + escapeHtml(m.sender) + ')</div><div class="msg-text">' + escapeHtml(m.text) + '</div></div>';
+                    }).join('');
+            }
+        });
     viewedChats.add(r.chat_id);
-    toggleBtn.className = 'btn btn-accent btn-dialog';
-    toggleBtn.style.cssText = 'padding: 4px 12px; font-size: 12px;';
-    toggleBtn.textContent = 'Просмотрен';
 }
 
-function renderScoreBadge(score) {
-    return `<span class="score-badge score-${score}">${score}</span>`;
-}
-
+function renderScoreBadge(score) { return `<span class="score-badge score-${score}">${score}</span>`; }
 function renderTotalScore(score) {
     const cls = score === 100 ? 'total-100' : score === 30 ? 'total-30' : 'total-0';
     const label = score === 100 ? 'Отлично' : score === 30 ? 'Удовл.' : 'Критично';
@@ -900,110 +980,43 @@ function renderTotalScore(score) {
 function showDetail(index) {
     const r = currentResults[index];
     if (!r) return;
-    
     const content = document.getElementById('modalContent');
     content.innerHTML = `
-        <div class="modal-title">Диалог #${r.chat_id} — ${r.employee_name} — ${r.total_score}/100</div>
-        
-        <div class="alert alert-info" style="margin-bottom: 12px;">
-            <strong>Резюме:</strong> ${r.summary}
-        </div>
-        
-        <h4 style="margin: 12px 0 8px;">Оценки по критериям</h4>
+        <div class="modal-title">#${r.chat_id} — ${r.employee_name} — ${r.total_score}/100</div>
+        <div class="alert alert-info" style="margin-bottom:14px;"><strong>Резюме:</strong> ${r.summary}</div>
+        <h4 style="margin:14px 0 10px;font-size:15px;">Оценки по критериям</h4>
         <div class="criteria-list">
             ${r.criteria_scores.map(cs => `
                 <div class="criteria-item">
                     ${renderScoreBadge(cs.score)}
-                    <div>
-                        <div class="criteria-name">${cs.name}</div>
-                        <div class="criteria-just">${cs.justification}</div>
-                    </div>
-                </div>
-            `).join('')}
+                    <div><div class="criteria-name">${cs.name}</div><div class="criteria-just">${cs.justification}</div></div>
+                </div>`).join('')}
         </div>
-        
-        ${r.strengths.length > 0 ? `
-            <h4 style="margin: 16px 0 8px; color: #27AE60;">Сильные стороны</h4>
-            ${r.strengths.map(s => `<span class="tag tag-green">${s}</span>`).join('')}
-        ` : ''}
-        
-        ${r.weaknesses.length > 0 ? `
-            <h4 style="margin: 16px 0 8px; color: #E74C3C;">Слабые стороны</h4>
-            ${r.weaknesses.map(w => `<span class="tag tag-red">${w}</span>`).join('')}
-        ` : ''}
-        
-        ${r.recommendations.length > 0 ? `
-            <h4 style="margin: 16px 0 8px; color: #2980B9;">Рекомендации</h4>
-            ${r.recommendations.map(rec => `<span class="tag tag-blue">${rec}</span>`).join('')}
-        ` : ''}
-        
-        <h4 style="margin: 16px 0 8px;">Текст диалога
-            <label style="float: right; font-size: 12px; font-weight: 400; cursor: pointer;">
-                <input type="checkbox" id="showAllMsgs" onchange="renderChatMessages('${r.chat_id}', ${index})">
-                Все сообщения
-            </label>
-        </h4>
-        <div id="chatMessages" style="background: var(--bg); padding: 12px; border-radius: 8px;">
-            <div style="text-align: center; color: var(--text-light);">Загрузка...</div>
-        </div>
+        ${r.strengths.length > 0 ? `<h4 style="margin:16px 0 8px;color:#00B894;">Сильные стороны</h4>${r.strengths.map(s => `<span class="tag tag-green">${s}</span>`).join('')}` : ''}
+        ${r.weaknesses.length > 0 ? `<h4 style="margin:16px 0 8px;color:#E17055;">Зоны роста</h4>${r.weaknesses.map(w => `<span class="tag tag-red">${w}</span>`).join('')}` : ''}
+        ${r.recommendations.length > 0 ? `<h4 style="margin:16px 0 8px;color:var(--primary);">Рекомендации</h4>${r.recommendations.map(rec => `<span class="tag tag-blue">${rec}</span>`).join('')}` : ''}
+        <h4 style="margin:16px 0 8px;">Текст диалога</h4>
+        <div id="chatMessages" style="background:var(--bg);padding:14px;border-radius:var(--radius-sm);"><div style="text-align:center;color:var(--text-light);">Загрузка...</div></div>
     `;
-    
     document.getElementById('detailModal').classList.add('active');
-    renderChatMessages(r.chat_id, index);
-}
 
-function renderChatMessages(chatId, index) {
-    const showAll = document.getElementById('showAllMsgs')?.checked;
-    
     if (currentSessionId) {
-        fetch(API + '/api/chat/' + currentSessionId + '/' + chatId)
+        fetch(API + '/api/chat/' + currentSessionId + '/' + r.chat_id)
             .then(res => res.json())
             .then(data => {
                 if (data.chat && data.chat.messages) {
-                    let msgs = data.chat.messages;
-                    if (!showAll) {
-                        msgs = msgs.filter(m => m.role !== 'bot');
-                    }
+                    const msgs = data.chat.messages.filter(m => m.role !== 'bot');
                     const container = document.getElementById('chatMessages');
                     if (!container) return;
                     container.innerHTML = msgs.map(m => {
                         let cls = 'msg-client';
                         if (m.role === 'employee') cls = 'msg-employee';
-                        else if (m.role === 'bot') cls = 'msg-client';
-                        const label = m.role === 'employee' ? 'Сотрудник' : m.role === 'bot' ? 'Бот' : 'Клиент';
-                        const badge = m.role === 'bot' ? '<span style="font-size:10px;color:#999;"> [бот]</span>' : '';
-                        return '<div class="chat-message ' + cls + '">' +
-                            '<div class="msg-sender">' + label + ' (' + escapeHtml(m.sender) + ')' + badge + '</div>' +
-                            '<div class="msg-text">' + escapeHtml(m.text) + '</div>' +
-                        '</div>';
+                        const label = m.role === 'employee' ? 'Оператор' : 'Исполнитель';
+                        return '<div class="chat-message ' + cls + '"><div class="msg-sender">' + label + ' (' + escapeHtml(m.sender) + ')</div><div class="msg-text">' + escapeHtml(m.text) + '</div></div>';
                     }).join('');
                 }
             });
     }
-}
-
-function renderChatMessagesInline(container, chatId) {
-    if (!currentSessionId || !chatId) return;
-    container.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 20px;">Загрузка...</div>';
-    fetch(API + '/api/chat/' + currentSessionId + '/' + chatId)
-        .then(res => res.json())
-        .then(data => {
-            if (data.chat && data.chat.messages) {
-                container.innerHTML = data.chat.messages
-                    .filter(m => m.role !== 'bot')
-                    .map(m => {
-                        const cls = m.role === 'employee' ? 'msg-employee' : 'msg-client';
-                        const label = m.role === 'employee' ? 'Сотрудник' : 'Клиент';
-                        return '<div class="chat-message ' + cls + '">' +
-                            '<div class="msg-sender">' + label + ' (' + escapeHtml(m.sender) + ')</div>' +
-                            '<div class="msg-text">' + escapeHtml(m.text) + '</div>' +
-                        '</div>';
-                    }).join('');
-            }
-        })
-        .catch(err => {
-            container.innerHTML = '<div class="alert alert-error">Ошибка загрузки: ' + err.message + '</div>';
-        });
 }
 
 function escapeHtml(text) {
@@ -1013,29 +1026,37 @@ function escapeHtml(text) {
 }
 
 function markGood(chatId) {
-    if (markedChats.has(chatId)) return;
-    if (!currentSessionId) return;
-    
+    if (markedChats.has(chatId) || !currentSessionId) return;
     fetch(API + '/api/mark-good/' + currentSessionId + '/' + chatId, {method: 'POST'})
-        .then(r => {
-            if (!r.ok) throw new Error('Ошибка');
-            return r.json();
-        })
+        .then(r => { if (!r.ok) throw new Error(); return r.json(); })
         .then(() => {
             markedChats.add(chatId);
             const btn = document.getElementById('mark-' + chatId);
-            if (btn) {
-                btn.classList.add('marked');
-                btn.textContent = 'Сохранён';
-            }
+            if (btn) { btn.classList.add('marked'); btn.textContent = 'Сохранён'; }
         })
         .catch(err => alert('Ошибка: ' + err.message));
 }
 
 function exportExcel() {
-    if (!currentSessionId) { alert('Нет результатов для экспорта'); return; }
+    if (!currentSessionId) { alert('Нет результатов'); return; }
     window.open(API + '/api/export/' + currentSessionId, '_blank');
 }
+
+function updateAiUsage() {
+    fetch(API + '/api/ai-usage')
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById('aiUsage');
+            if (data.calls > 0) {
+                const k = (data.total_tokens / 1000).toFixed(1);
+                el.textContent = `Qwen: ${k}K токенов (${data.calls} вызовов)`;
+            } else {
+                el.style.display = 'none';
+            }
+        });
+}
+updateAiUsage();
+setInterval(updateAiUsage, 30000);
 </script>
 
 </body>

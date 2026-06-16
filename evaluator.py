@@ -91,20 +91,8 @@ CLOSING_PHRASES = [
 
 
 IMPERATIVE_VERBS = [
-    "сделай", "верни", "возвращай", "отмени", "восстанови", "подключи", "отключи",
-    "переделай", "исправь", "поправь", "напиши", "позвони", "пришли", "отправь",
-    "дай", "покажи", "объясни", "разберись", "реши", "прекрати", "останови",
-    "убери", "забери", "прими", "действуй", "ответь", "соедини",
-    "переведи", "переключай", "открой", "закрой", "включи", "выключи",
-    "скажи", "сообщи", "уточни", "проверь", "найди", "посмотри",
-    "почини", "наладь", "настрой", "смени", "замени",
-    "верните", "сделайте", "отмените", "исправьте", "напишите",
-    "позвоните", "пришлите", "отправьте", "дайте", "покажите",
-    "объясните", "разберитесь", "решите", "ответьте", "проверьте",
-    "скажите", "сообщите", "уточните", "найдите", "посмотрите",
-    "подключите", "отключите", "включите", "выключите", "почините",
-    "закройте", "откройте", "верните",
-    "прекратите", "остановитесь", "уберите", "заберите",
+    "прекрати", "останови", "перестань",
+    "убери", "забери",
     "перестаньте", "перестань", "отстань", "отстаньте",
 ]
 
@@ -524,6 +512,30 @@ def _evaluate_problem_resolution(chat: Chat) -> tuple:
     return score, " ".join(justifications), strengths, weaknesses
 
 
+_CLIENT_NEGATIVE_MARKERS = [
+    "жду", "долго", "мне никто не отвечает", "никто не отвечает",
+    "ignor", "игнориру", "ужасн", "бесполез", "отвратительн",
+    "не работает", "не работает!", "всё сломал", "всё сломалось",
+    "!", "!!!", "????",
+    "когда выплатят", "когда деньги", "где мои деньги",
+    "позор", "обман", "мошенн",
+    "уже третий раз", "уже второй раз", "сколько можно",
+    "неужели так сложно", "я теряю терпение", "потеряю терпение",
+    "вас игнор", "обращался уже", "писал уже", "звонил уже",
+    "противно", "отвратительно", "бред", "чушь",
+    "никакой помощи", "никакой реакции", "терпение лопнуло",
+]
+
+
+def _client_seems_negative(chat: Chat) -> bool:
+    client_msgs = _get_client_messages(chat)
+    if len(client_msgs) <= 1:
+        return False
+    client_text = _get_all_text(client_msgs).lower()
+    hits = sum(1 for marker in _CLIENT_NEGATIVE_MARKERS if marker in client_text)
+    return hits >= 2
+
+
 def _evaluate_tone_politeness(chat: Chat) -> tuple:
     emp_msgs = _get_employee_messages(chat)
     client_msgs = _get_client_messages(chat)
@@ -533,159 +545,87 @@ def _evaluate_tone_politeness(chat: Chat) -> tuple:
     if not emp_msgs:
         return 1, "Нет сообщений сотрудника", [], ["Нет сообщений"]
 
-    polite_count = _count_phrase_hits(emp_text, POLITE_PHRASES)
-    empathy_count = _count_phrase_hits(emp_text, EMPATHY_PHRASES)
-    rude_count = _count_phrase_hits(emp_text, RUDE_PHRASES)
-    caps_count = _count_caps_words(_get_all_text(emp_msgs))
-    aggressive_punct = sum(_count_aggressive_punct(m) for m in emp_msgs)
+    bot_msgs = [m for m in chat.messages if m.role == MessageRole.BOT]
+    real_emp_msgs = [m for m in chat.messages if m.role == MessageRole.EMPLOYEE]
+    is_bot_heavy = len(bot_msgs) > len(real_emp_msgs)
 
-    needs_apology = _client_needs_apology(client_text)
+    if is_bot_heavy:
+        return 5, "Диалог с ботом, оператор дал верный ответ", [], []
+
+    rude_count = _count_phrase_hits(emp_text, RUDE_PHRASES)
+
+    client_negative, neg_reasons = _client_expressed_negative(client_text)
     has_apology = any(
         p in emp_text for p in [
             "извин", "сожалею", "жаль", "приношу", "извиняемся", "прошу прощения",
         ]
     )
-    has_empathy = empathy_count > 0
-
-    client_negative, neg_reasons = _client_expressed_negative(client_text)
-    has_solution = _count_phrase_hits(emp_text, SOLUTION_INDICATORS) >= 2
-    operator_responded = has_apology or has_empathy or has_solution
-
-    if client_negative and not has_empathy and not has_apology:
-        frustration_only = any(r in neg_reasons for r in ["нецензурная лексика", "фрустрация и недовольство"])
-        if frustration_only:
-            operator_responded = False
+    has_empathy = _count_phrase_hits(emp_text, EMPATHY_PHRASES) > 0
 
     strengths = []
     weaknesses = []
     justifications = []
     penalty = 0.0
-    bonus = 0.0
 
     ignored_client = _detect_ignored_messages(chat)
     if ignored_client:
         penalty += 3.0
         weaknesses.append("Оператор проигнорировал сообщение клиента и закрыл/не ответил на диалог")
 
-    if client_negative and not operator_responded:
+    if client_negative and not has_empathy and not has_apology:
         penalty += 3.0
         reasons_str = ", ".join(neg_reasons)
-        weaknesses.append(f"Клиент выразил негатив ({reasons_str}) — оператор никак не отреагировал")
+        weaknesses.append(f"Клиент выразил негатив ({reasons_str}) — оператор не проявил эмпатию")
 
     if rude_count > 0:
         penalty += 3.0
         weaknesses.append("Обнаружены грубые или обесценивающие фразы")
 
-    if caps_count > 2:
-        penalty += 2.0
-        weaknesses.append("Использование КАПСЛОКА (крик на клиента)")
-
-    if aggressive_punct > 0:
-        penalty += 1.0
-        weaknesses.append("Агрессивная пунктуация (много!!! или ???)")
-
-    if polite_count >= 2:
-        bonus += 1.0
-        strengths.append("Использование этикетных формул (пожалуйста, благодарю)")
-
-    if has_empathy:
-        bonus += 1.0
-        strengths.append("Проявление понимания к ситуации клиента")
-
-    if needs_apology and not has_apology:
-        penalty += 1.5
-        weaknesses.append("Клиент столкнулся с проблемой по вине системы — нет извинений")
-    elif needs_apology and has_apology:
-        bonus += 1.0
-        strengths.append("Сотрудник извинился за проблему")
-
-    if _count_phrase_hits(emp_text, GREETING_PHRASES) > 0:
-        bonus += 0.5
-    if _count_phrase_hits(emp_text, CLOSING_PHRASES) > 0:
-        bonus += 0.5
-
     score = 5
     if penalty >= 3.0:
         score = 1
-    elif penalty >= 1.0:
-        score = 3
-
-    if bonus >= 2.0 and penalty < 1.0:
-        score = 5
 
     if score == 5:
         justifications.append(
-            "Использование этикетных формул, отсутствие грубости и сарказма. "
-            "Проявление понимания к ситуации клиента."
+            "Вежливое общение, отсутствие грубости. Вопрос клиента решён."
         )
-    elif score == 3:
+    elif score == 1:
         justifications.append(
-            "Тон в целом корректный, но не хватает эмпатии или извинений."
-        )
-    else:
-        justifications.append(
-            "Грубость, обесценивание проблемы клиента или агрессивный тон."
+            "Грубость, обесценивание или игнорирование клиента."
         )
 
     return score, " ".join(justifications), strengths, weaknesses
 
 
-def _evaluate_chat(chat: Chat) -> ChatEvaluation:
-    eq_score, eq_just, eq_str, eq_weak = _evaluate_extra_questions(chat)
-    pr_score, pr_just, pr_str, pr_weak = _evaluate_problem_resolution(chat)
+def _evaluate_chat(chat: Chat, use_ai: bool = False) -> ChatEvaluation:
     tp_score, tp_just, tp_str, tp_weak = _evaluate_tone_politeness(chat)
 
-    use_ai = False
     ai_result = None
-    try:
-        from ai_evaluator import evaluate_with_ai, is_ai_available
-        if is_ai_available():
-            ai_result = evaluate_with_ai(chat, chat.employee_name or "Неизвестный")
-    except Exception:
-        pass
+    if use_ai:
+        if not _client_seems_negative(chat):
+            tp_score, tp_just = 5, "Исполнитель не выражал негатив, вежливое общение"
+        else:
+            try:
+                from ai_evaluator import evaluate_with_ai, is_ai_available
+                if is_ai_available():
+                    ai_result = evaluate_with_ai(chat, chat.employee_name or "Неизвестный")
+            except Exception:
+                pass
 
     if ai_result and "criteria" in ai_result:
         ai_criteria = {c["name"]: c for c in ai_result["criteria"]}
-        ai_str = ai_result.get("strengths", [])
-        ai_weak = ai_result.get("weaknesses", [])
-        ai_recs = ai_result.get("recommendations", [])
+        ai_soft = ai_criteria.get("Софт-скиллы")
+        if ai_soft and ai_soft.get("score") in (1, 3, 5):
+            tp_score = ai_soft["score"]
+            tp_just = ai_soft.get("justification", tp_just)
 
-        ai_tone = ai_criteria.get("Тон и вежливость")
-        if ai_tone and ai_tone.get("score") in (1, 3, 5):
-            tp_score = ai_tone["score"]
-            tp_just = ai_tone.get("justification", tp_just)
-            use_ai = True
-
-        ai_resolve = ai_criteria.get("Решение вопроса")
-        if ai_resolve and ai_resolve.get("score") in (1, 3, 5):
-            pr_score = ai_resolve["score"]
-            pr_just = ai_resolve.get("justification", pr_just)
-            use_ai = True
-
-        if use_ai:
-            all_str = list(dict.fromkeys(eq_str + ai_str))
-            all_weak = list(dict.fromkeys(eq_weak + ai_weak))
-            recommendations = ai_recs if ai_recs else _generate_recommendations(all_weak, [
-                type('CR', (), {'name': 'Лишние вопросы и сообщения', 'score': eq_score}),
-                type('CR', (), {'name': 'Решение вопроса', 'score': pr_score}),
-                type('CR', (), {'name': 'Тон и вежливость', 'score': tp_score}),
-            ])
-        else:
-            all_str = list(dict.fromkeys(eq_str + pr_str + tp_str))
-            all_weak = list(dict.fromkeys(eq_weak + pr_weak + tp_weak))
-            recommendations = _generate_recommendations(all_weak, [
-                type('CR', (), {'name': 'Лишние вопросы и сообщения', 'score': eq_score}),
-                type('CR', (), {'name': 'Решение вопроса', 'score': pr_score}),
-                type('CR', (), {'name': 'Тон и вежливость', 'score': tp_score}),
-            ])
+        all_str = list(dict.fromkeys(ai_result.get("strengths", [])))
+        all_weak = list(dict.fromkeys(ai_result.get("weaknesses", [])))
+        recommendations = ai_result.get("recommendations", []) or _generate_recommendations(all_weak, tp_score)
     else:
-        all_str = list(dict.fromkeys(eq_str + pr_str + tp_str))
-        all_weak = list(dict.fromkeys(eq_weak + pr_weak + tp_weak))
-        recommendations = _generate_recommendations(all_weak, [
-            type('CR', (), {'name': 'Лишние вопросы и сообщения', 'score': eq_score}),
-            type('CR', (), {'name': 'Решение вопроса', 'score': pr_score}),
-            type('CR', (), {'name': 'Тон и вежливость', 'score': tp_score}),
-        ])
+        all_str = tp_str
+        all_weak = tp_weak
+        recommendations = _generate_recommendations(all_weak, tp_score)
 
     boost_msg = ""
     if not use_ai:
@@ -694,23 +634,19 @@ def _evaluate_chat(chat: Chat) -> ChatEvaluation:
             boost_msg = " (сходство с эталонным диалогом учтено)"
 
     criteria_scores = [
-        CriterionResult(name="Лишние вопросы и сообщения", score=eq_score, justification=eq_just),
-        CriterionResult(name="Решение вопроса", score=pr_score, justification=pr_just),
-        CriterionResult(name="Тон и вежливость", score=tp_score, justification=tp_just),
+        CriterionResult(name="Софт-скиллы", score=tp_score, justification=tp_just),
     ]
 
     total_score = calculate_total_score(criteria_scores)
 
     score_label = {100: "Отлично", 30: "Удовлетворительно", 0: "Критично"}.get(total_score, str(total_score))
 
-    summary_parts = []
-    for cs in criteria_scores:
-        if cs.score < 5:
-            summary_parts.append(f"{cs.name}: {cs.score}/5")
-    if not summary_parts:
-        summary = f"Диалог оценён на {total_score}/100{boost_msg}. Все критерии на высоком уровне."
+    if tp_score == 5:
+        summary = f"Оценка {total_score}/100{boost_msg}. Хороший уровень коммуникации."
+    elif tp_score == 3:
+        summary = f"Оценка {total_score}/100{boost_msg}. Недостаточно проявлена эмпатия."
     else:
-        summary = f"Итого {total_score}/100 ({score_label}){boost_msg}. Проблемные зоны: {'; '.join(summary_parts)}."
+        summary = f"Оценка {total_score}/100{boost_msg}. Игнорирование переживаний исполнителя."
 
     return ChatEvaluation(
         chat_id=chat.id,
@@ -725,26 +661,29 @@ def _evaluate_chat(chat: Chat) -> ChatEvaluation:
     )
 
 
-def _generate_recommendations(weaknesses: List[str], scores: List[CriterionResult]) -> List[str]:
+def _generate_recommendations(weaknesses: List[str], soft_score: int) -> List[str]:
     recs = []
-    score_map = {cs.name: cs.score for cs in scores}
 
-    if score_map.get("Лишние вопросы и сообщения", 5) < 5:
-        recs.append("Задавайте только целевые вопросы, направленные на решение. Объединяйте несколько уточнений в одно сообщение.")
-        recs.append("Перед уточняющим вопросом проверьте — возможно, клиент уже дал эту информацию.")
-
-    if score_map.get("Решение вопроса", 5) < 5:
-        recs.append("После ответа на основной вопрос предвидите возможные дополнительные вопросы и отвечайте на них заранее.")
-        recs.append("Указывайте конкретные шаги для решения: куда нажать, что ввести, какой раздел открыть.")
-        recs.append("Расскажите клиенту, как избежать подобной проблемы в будущем.")
-
-    if score_map.get("Тон и вежливость", 5) < 5:
-        recs.append("Используйте этикетные формулы: «пожалуйста», «благодарю», «понимаю ваше беспокойство».")
-        recs.append("Если клиент столкнулся с проблемой по вине системы — обязательно извинитесь.")
-        recs.append("Избегайте фраз, которые могут восприниматься как обесценивание: «не знаю», «обратитесь куда-нибудь».")
-
-    if not recs:
-        recs.append("Продолжайте в том же духе! Диалог ведён на высоком уровне.")
+    for w in weaknesses:
+        w_lower = w.lower()
+        if "игнорир" in w_lower:
+            recs.append(
+                "В диалоге вы не отреагировали на сообщение клиента — после этого диалог был закрыт. "
+                "Даже если ответа нет, напишите: «Я передал ваш вопрос коллегам, вернусь с ответом в течение часа». "
+                "🎓 Видео для прокачки: https://www.youtube.com/results?search_query=работа+с+возражениями+клиентов+в+поддержке"
+            )
+        elif "груб" in w_lower or "обесценив" in w_lower:
+            recs.append(
+                "В ответе обнаружены формулировки, которые могут быть восприняты как грубые или обесценивающие. "
+                "Замените формальные ответы на личные: «Понимаю ваше беспокойство» вместо «Выплаты обрабатываются». "
+                "🎓 Видео для прокачки: https://www.youtube.com/results?search_query=деловая+переписка+с+клиентами"
+            )
+        elif "негатив" in w_lower and ("не проявил" in w_lower or "не отреагировал" in w_lower):
+            recs.append(
+                "Клиент выражал недовольство, но вы не показали, что понимаете его эмоции. "
+                "Начинайте ответ с сочувствия: «Понимаю, это неприятно. Давайте разберёмся вместе». "
+                "🎓 Видео для прокачки: https://www.youtube.com/results?search_query=эмпатия+в+общении+с+клиентами"
+            )
 
     return recs
 
@@ -754,6 +693,7 @@ def evaluate_chats_batch(
     api_key: str = "",
     api_base: str = "",
     model: str = "",
+    use_ai: bool = False,
     progress_callback=None,
 ) -> list:
     evaluations = []
@@ -774,7 +714,7 @@ def evaluate_chats_batch(
             else:
                 progress_callback(i, total, chat.id)
 
-        evaluation = _evaluate_chat(chat)
+        evaluation = _evaluate_chat(chat, use_ai=use_ai)
         evaluations.append(evaluation)
 
     if progress_callback:
@@ -797,5 +737,5 @@ def evaluate_chats_batch(
     return evaluations
 
 
-async def evaluate_chat_single(chat: Chat, **kwargs) -> ChatEvaluation:
-    return _evaluate_chat(chat)
+async def evaluate_chat_single(chat: Chat, use_ai: bool = False, **kwargs) -> ChatEvaluation:
+    return _evaluate_chat(chat, use_ai=use_ai)

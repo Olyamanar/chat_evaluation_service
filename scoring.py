@@ -7,12 +7,7 @@ def calculate_total_score(criteria_scores: list) -> int:
     if 1 in scores:
         return 0
 
-    count_3 = scores.count(3)
-
-    if count_3 >= 2:
-        return 0
-
-    if count_3 == 1:
+    if 3 in scores:
         return 30
 
     return 100

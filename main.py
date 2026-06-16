@@ -2,6 +2,7 @@ import os
 import io
 import uuid
 import json
+import threading
 from typing import Dict, List
 from contextlib import asynccontextmanager
 
@@ -39,6 +40,8 @@ parsed_chats: Dict[str, List[Chat]] = {}
 evaluation_results: Dict[str, List[ChatEvaluation]] = {}
 evaluation_chats: Dict[str, List[Chat]] = {}
 
+eval_tasks: Dict[str, dict] = {}
+
 
 def _safe_filename(name: str) -> str:
     return re.sub(r'[^\w\-.]', '_', name, flags=re.ASCII)
@@ -50,6 +53,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Сервис оценки чатов", lifespan=lifespan)
+
+@app.middleware("http")
+async def no_cache_middleware(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -127,6 +139,7 @@ async def evaluate(request: EvaluationRequest):
     file_id = request.file_id
     employee_name = request.employee_name
     max_chats = request.max_chats
+    use_ai = request.use_ai
 
     if file_id not in parsed_chats:
         raise HTTPException(status_code=404, detail="Файл не найден. Загрузите файл заново.")
@@ -140,16 +153,49 @@ async def evaluate(request: EvaluationRequest):
     session_id = str(uuid.uuid4())[:8]
     evaluation_chats[session_id] = filtered
 
-    evaluations = evaluate_chats_batch(filtered)
+    eval_tasks[session_id] = {
+        "status": "running",
+        "current": 0,
+        "total": len(filtered),
+        "error": None,
+    }
 
-    evaluation_results[session_id] = evaluations
+    def run_eval():
+        try:
+            evaluations = evaluate_chats_batch(filtered, use_ai=use_ai)
+            evaluation_results[session_id] = evaluations
+            eval_tasks[session_id]["status"] = "done"
+        except Exception as e:
+            eval_tasks[session_id]["status"] = "error"
+            eval_tasks[session_id]["error"] = str(e)
+
+    thread = threading.Thread(target=run_eval, daemon=True)
+    thread.start()
 
     return {
-        "session_id": session_id,
-        "total": len(evaluations),
+        "task_id": session_id,
+        "total": len(filtered),
         "employee_name": employee_name,
-        "results": [ev.model_dump() for ev in evaluations]
     }
+
+
+@app.get("/api/ai-usage")
+async def ai_usage():
+    from ai_evaluator import get_usage_stats
+    return get_usage_stats()
+
+
+@app.get("/api/evaluate/{task_id}/progress")
+async def evaluate_progress(task_id: str):
+    if task_id not in eval_tasks:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+    task = eval_tasks[task_id]
+    if task["status"] == "running":
+        return {"status": "running", "current": 0, "total": task["total"]}
+    elif task["status"] == "done":
+        return {"status": "done", "current": task["total"], "total": task["total"]}
+    else:
+        return {"status": "error", "error": task.get("error", "Unknown error")}
 
 
 @app.get("/api/results/{session_id}")

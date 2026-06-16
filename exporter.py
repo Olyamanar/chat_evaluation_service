@@ -6,10 +6,10 @@ from openpyxl.utils import get_column_letter
 from models import ChatEvaluation, Chat, CRITERIA
 
 
-HEADER_FILL = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+HEADER_FILL = PatternFill(start_color="6C5CE7", end_color="6C5CE7", fill_type="solid")
 HEADER_FONT = Font(name="Arial", size=11, bold=True, color="FFFFFF")
-TITLE_FONT = Font(name="Arial", size=14, bold=True, color="2C3E50")
-SUBTITLE_FONT = Font(name="Arial", size=11, bold=True, color="34495E")
+TITLE_FONT = Font(name="Arial", size=14, bold=True, color="6C5CE7")
+SUBTITLE_FONT = Font(name="Arial", size=11, bold=True, color="6C5CE7")
 NORMAL_FONT = Font(name="Arial", size=10)
 WRAP_ALIGN = Alignment(wrap_text=True, vertical="top")
 CENTER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -56,15 +56,15 @@ def _write_summary_sheet(wb: Workbook, evaluations: List[ChatEvaluation], employ
     ws = wb.active
     ws.title = "Сводка"
 
-    ws.merge_cells("A1:H1")
-    ws["A1"] = f"Оценка чатов сотрудника: {employee_name}"
+    ws.merge_cells("A1:F1")
+    ws["A1"] = f"Оценка софт-скиллов: {employee_name}"
     ws["A1"].font = TITLE_FONT
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 35
 
     headers = [
         "№", "ID диалога", "Дата",
-        "Лишние вопросы (1-5)", "Решение вопроса (1-5)", "Тон и вежливость (1-5)",
+        "Софт-скиллы (1-5)",
         "Итого баллов", "Резюме"
     ]
     for col, header in enumerate(headers, 1):
@@ -89,13 +89,13 @@ def _write_summary_sheet(wb: Workbook, evaluations: List[ChatEvaluation], employ
             cell.font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
             cell.border = THIN_BORDER
 
-        total_cell = ws.cell(row=row, column=7, value=ev.total_score)
+        total_cell = ws.cell(row=row, column=5, value=ev.total_score)
         total_cell.alignment = CENTER_ALIGN
         total_cell.fill = TOTAL_COLORS.get(ev.total_score, PatternFill())
         total_cell.font = Font(name="Arial", size=12, bold=True, color="FFFFFF")
         total_cell.border = THIN_BORDER
 
-        ws.cell(row=row, column=8, value=ev.summary).alignment = WRAP_ALIGN
+        ws.cell(row=row, column=6, value=ev.summary).alignment = WRAP_ALIGN
 
     last_row = len(evaluations) + 4
     ws.cell(row=last_row, column=1, value="Средний балл:").font = SUBTITLE_FONT
@@ -103,7 +103,7 @@ def _write_summary_sheet(wb: Workbook, evaluations: List[ChatEvaluation], employ
     avg_cell = ws.cell(row=last_row, column=2, value=round(avg, 1))
     avg_cell.font = Font(name="Arial", size=12, bold=True)
 
-    col_widths = [5, 12, 12, 20, 20, 20, 14, 50]
+    col_widths = [5, 12, 12, 16, 14, 50]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
