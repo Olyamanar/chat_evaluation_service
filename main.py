@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 import re
 from pathlib import Path
+from urllib.parse import quote
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
@@ -205,6 +206,66 @@ async def get_results(session_id: str):
     return {"results": [ev.model_dump() for ev in evaluation_results[session_id]]}
 
 
+@app.get("/api/dashboard")
+async def dashboard():
+    from collections import Counter, defaultdict
+
+    all_evals = []
+    for evals in evaluation_results.values():
+        all_evals.extend(evals)
+
+    if not all_evals:
+        return {"total_evaluations": 0}
+
+    emp_scores = defaultdict(list)
+    score_dist = Counter()
+    date_scores = defaultdict(list)
+    weakness_counter = Counter()
+
+    for ev in all_evals:
+        emp_scores[ev.employee_name].append(ev.total_score)
+        score_dist[ev.total_score] += 1
+        if ev.date:
+            date_scores[ev.date].append(ev.total_score)
+        for w in ev.weaknesses:
+            weakness_counter[w] += 1
+
+    employees = []
+    for name, scores in emp_scores.items():
+        employees.append({
+            "name": name,
+            "avg_score": round(sum(scores) / len(scores), 1),
+            "total": len(scores),
+            "critical": sum(1 for s in scores if s == 0),
+            "excellent": sum(1 for s in scores if s == 100),
+        })
+    employees.sort(key=lambda x: x["avg_score"], reverse=True)
+
+    sorted_dates = sorted(date_scores.keys())
+    dynamics = [
+        {"date": d, "avg_score": round(sum(date_scores[d]) / len(date_scores[d]), 1), "count": len(date_scores[d])}
+        for d in sorted_dates
+    ]
+
+    top_weaknesses = [
+        {"text": w, "count": c}
+        for w, c in weakness_counter.most_common(10)
+    ]
+
+    return {
+        "total_evaluations": len(all_evals),
+        "total_employees": len(emp_scores),
+        "employees": employees,
+        "score_distribution": {
+            "critical": score_dist.get(0, 0),
+            "satisfactory": score_dist.get(30, 0),
+            "excellent": score_dist.get(100, 0),
+        },
+        "dynamics": dynamics,
+        "top_weaknesses": top_weaknesses,
+    }
+
+
 @app.get("/api/chats/{session_id}")
 async def get_session_chats(session_id: str):
     if session_id not in evaluation_chats:
@@ -254,7 +315,7 @@ async def remove_good_example(example_id: str):
 
 
 @app.get("/api/export/{session_id}")
-async def export_results(session_id: str):
+async def export_results(session_id: str, filter: str = "all"):
     if session_id not in evaluation_results:
         raise HTTPException(status_code=404, detail="Результаты не найдены")
 
@@ -265,16 +326,40 @@ async def export_results(session_id: str):
     chats = evaluation_chats[session_id]
     employee_name = evaluations[0].employee_name if evaluations else "Unknown"
 
+    filter_label = ""
+    if filter == "good":
+        evaluations = [e for e in evaluations if e.total_score == 100]
+        filter_label = " — отличные диалоги"
+    elif filter == "bad":
+        evaluations = [e for e in evaluations if e.total_score == 0]
+        filter_label = " — критичные диалоги"
+    elif filter == "medium":
+        evaluations = [e for e in evaluations if e.total_score == 30]
+        filter_label = " — удовлетворительные диалоги"
+
+    if not evaluations:
+        raise HTTPException(status_code=404, detail="Нет диалогов с выбранным фильтром")
+
+    chat_ids = {e.chat_id for e in evaluations}
+    chats = [c for c in chats if c.id in chat_ids]
+
+    surname = employee_name.split()[0] if employee_name else "Unknown"
+    type_labels = {"good": "хорошие", "bad": "плохие", "medium": "удовлетворительные", "all": "все"}
+    type_label = type_labels.get(filter, "все")
+
     try:
-        excel_data = export_to_excel(evaluations, chats, employee_name)
+        excel_data = export_to_excel(evaluations, chats, employee_name + filter_label, filter_type=filter)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка создания Excel: {str(e)}")
+
+    filename = f"{surname}_{type_label}_{len(evaluations)}.xlsx"
+    filename_ascii = f"export_{filter}_{len(evaluations)}.xlsx"
 
     return StreamingResponse(
         io.BytesIO(excel_data),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f"attachment; filename=evaluation_{_safe_filename(employee_name)}_{session_id}.xlsx"
+            "Content-Disposition": f"attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{quote(filename)}"
         }
     )
 

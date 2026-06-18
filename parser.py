@@ -11,6 +11,8 @@ BOT_KEYWORDS = [
     "автоинформатор", "auto", "service bot",
 ]
 
+_BOT_SENDERS = set()
+
 BOT_TEXT_MARKERS = [
     "Кнопки отправлены:",
     "Переключаю на сотрудника.",
@@ -112,7 +114,22 @@ ROLE_PREFIX_PATTERNS = [
 
 def is_bot(sender: str) -> bool:
     sender_lower = sender.lower().strip()
-    return any(kw in sender_lower for kw in BOT_KEYWORDS)
+    if any(kw in sender_lower for kw in BOT_KEYWORDS):
+        return True
+    return any(bs in sender_lower for bs in _BOT_SENDERS)
+
+
+def _detect_bot_senders(content: str) -> set:
+    bot_senders = set()
+    for line in content.split("\n"):
+        if "Кнопки отправлен" not in line:
+            continue
+        m = re.match(r"\d{2}:\d{2}(?::\d{2})?\s+(\S+(?:\s+\S+){0,2}?)\s*:\s*Кнопки отправлен", line)
+        if m:
+            sender = m.group(1).strip()
+            if sender and len(sender) > 1:
+                bot_senders.add(sender.lower())
+    return bot_senders
 
 
 def is_bot_message(sender: str, text: str) -> bool:
@@ -159,11 +176,15 @@ def detect_role(sender: str, known_employees: Optional[List[str]] = None) -> Mes
 
 
 def _detect_operator_names(content: str) -> List[str]:
+    bot_senders = _detect_bot_senders(content)
+
     operators = set()
     for pattern in OPERATOR_DETECT_PATTERNS:
         for m in pattern.finditer(content):
             name = m.group(1).strip()
             if len(name) > 1 and not name.startswith("ссылк"):
+                if name.lower() in bot_senders:
+                    continue
                 operators.add(name)
 
     filtered = set()
@@ -343,7 +364,7 @@ def _parse_ts_format(lines: List[str], known_employees: List[str]) -> Tuple[List
     return messages, pattern_matched
 
 
-def _group_into_chats(messages: List[Message], known_employees: Optional[List[str]] = None, dialog_date: str = None, chat_id_prefix: str = "1") -> List[Chat]:
+def _group_into_chats(messages: List[Message], known_employees: Optional[List[str]] = None, dialog_date: str = None, chat_id_prefix: str = "1", use_time_boundary: bool = True) -> List[Chat]:
     if not messages:
         return []
 
@@ -357,7 +378,7 @@ def _group_into_chats(messages: List[Message], known_employees: Optional[List[st
     chat_idx = 1
 
     for i, msg in enumerate(messages):
-        if i > 0 and _is_chat_boundary(messages, i):
+        if use_time_boundary and i > 0 and _is_chat_boundary(messages, i):
             if current_messages:
                 emp_name = _find_employee_name(current_messages)
                 date = dialog_date
@@ -515,6 +536,9 @@ def _find_block_employee(block_lines: List[str], known_employees: List[str] = No
 
 
 def parse_txt(content: str) -> List[Chat]:
+    global _BOT_SENDERS
+    _BOT_SENDERS = _detect_bot_senders(content)
+
     known_employees = _detect_operator_names(content)
 
     dialog_blocks = _split_dialogs_by_separator(content)
@@ -557,14 +581,14 @@ def parse_txt(content: str) -> List[Chat]:
 
             if msgs:
                 emp_name = _find_employee_name(msgs) or _find_employee_name(messages)
-                chats = _group_into_chats(msgs, known_employees, date, chat_id_prefix=dialog_id)
+                chats = _group_into_chats(msgs, known_employees, date, chat_id_prefix=dialog_id, use_time_boundary=False)
                 for c in chats:
                     if not c.employee_name:
                         c.employee_name = emp_name
                 _enrich_employee_names(chats, known_employees, block_employee)
                 all_chats.extend(chats)
         else:
-            chats = _group_into_chats(messages, known_employees, date, chat_id_prefix=dialog_id)
+            chats = _group_into_chats(messages, known_employees, date, chat_id_prefix=dialog_id, use_time_boundary=False)
             _enrich_employee_names(chats, known_employees, block_employee)
             all_chats.extend(chats)
 
@@ -590,10 +614,15 @@ def _resolve_ambiguous_roles(chats: List[Chat], known_employees: List[str] = Non
             continue
         emp_parts = set(chat.employee_name.strip().lower().split())
         for msg in chat.messages:
-            if msg.role == MessageRole.CLIENT:
-                sender_parts = set(msg.sender.strip().lower().split())
-                if sender_parts and sender_parts.issubset(emp_parts) and len(sender_parts) < len(emp_parts):
-                    msg.role = MessageRole.EMPLOYEE
+            sender_parts = set(msg.sender.strip().lower().split())
+            if not sender_parts:
+                continue
+            is_subset = sender_parts.issubset(emp_parts) and len(sender_parts) < len(emp_parts)
+            if msg.role == MessageRole.CLIENT and is_subset:
+                msg.role = MessageRole.EMPLOYEE
+                msg.sender = chat.employee_name
+            elif msg.role == MessageRole.EMPLOYEE and is_subset:
+                msg.sender = chat.employee_name
 
 
 def _parse_single_block(lines: List[str], known_employees: List[str]) -> List[Chat]:

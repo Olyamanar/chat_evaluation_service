@@ -36,13 +36,17 @@ TOTAL_COLORS = {
 def export_to_excel(
     evaluations: List[ChatEvaluation],
     chats: List[Chat],
-    employee_name: str
+    employee_name: str,
+    filter_type: str = "all"
 ) -> bytes:
     wb = Workbook()
 
     chat_map = {c.id: c for c in chats}
 
-    _write_summary_sheet(wb, evaluations, employee_name)
+    if filter_type in ("good", "bad", "medium"):
+        _write_dialog_cards_sheet(wb, evaluations, employee_name, filter_type)
+    else:
+        _write_summary_sheet(wb, evaluations, employee_name)
     _write_details_sheet(wb, evaluations, chat_map)
     _write_recommendations_sheet(wb, evaluations)
 
@@ -106,6 +110,69 @@ def _write_summary_sheet(wb: Workbook, evaluations: List[ChatEvaluation], employ
     col_widths = [5, 12, 12, 16, 14, 50]
     for i, w in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
+
+
+def _write_dialog_cards_sheet(wb: Workbook, evaluations: List[ChatEvaluation], employee_name: str, filter_type: str):
+    ws = wb.active
+    sheet_names = {"bad": "Критичные", "good": "Отличные", "medium": "Удовлетворительные"}
+    ws.title = sheet_names.get(filter_type, "Результаты")
+
+    headers = [
+        "ID диалога",
+        "Дата диалога",
+        "Софт-скилы",
+        "Итого",
+        "Резюме",
+        "Обоснование оценки",
+        "Слабые стороны",
+        "Рекомендации для сотрудника",
+    ]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = CENTER_ALIGN
+        cell.border = THIN_BORDER
+
+    for idx, ev in enumerate(evaluations):
+        row = idx + 2
+        soft_score = ev.criteria_scores[0].score if ev.criteria_scores else ""
+        soft_just = ev.criteria_scores[0].justification if ev.criteria_scores else ""
+        weaknesses_text = "\n".join(f"• {w}" for w in ev.weaknesses) if ev.weaknesses else ""
+        recs_text = "\n".join(f"→ {r}" for r in ev.recommendations) if ev.recommendations else ""
+
+        values = [
+            ev.chat_id,
+            ev.date or "",
+            soft_score,
+            f"{ev.total_score}/100",
+            ev.summary,
+            soft_just,
+            weaknesses_text,
+            recs_text,
+        ]
+        for col, val in enumerate(values, 1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.font = NORMAL_FONT
+            cell.alignment = WRAP_ALIGN
+            cell.border = THIN_BORDER
+            if col == 3:
+                cell.alignment = CENTER_ALIGN
+                cell.fill = SCORE_COLORS.get(soft_score, PatternFill())
+                cell.font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+            elif col == 4:
+                cell.alignment = CENTER_ALIGN
+
+        weaknesses_len = len(weaknesses_text)
+        recs_len = len(recs_text)
+        max_text_len = max(len(ev.summary), len(soft_just), weaknesses_len, recs_len, 20)
+        ws.row_dimensions[row].height = max(20, max_text_len // 5)
+
+    col_widths = [16, 14, 12, 10, 40, 50, 35, 60]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    ws.freeze_panes = "A2"
 
 
 def _write_details_sheet(wb: Workbook, evaluations: List[ChatEvaluation], chat_map: dict):

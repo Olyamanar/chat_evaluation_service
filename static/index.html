@@ -537,6 +537,12 @@
             border-radius: 8px;
         }
 
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
         @media (max-width: 768px) {
             .header-inner { padding: 14px 16px; }
             .header-title { display: none; }
@@ -544,9 +550,42 @@
             .card { padding: 20px; }
             .row { flex-direction: column; }
             .col { min-width: 100%; }
-            .steps { width: 100%; overflow-x: auto; }
+            .steps { width: 100%; overflow-x: auto(); }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+        }
+        .chart-card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+        .dashboard-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -559,6 +598,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
             <div id="aiUsage" class="header-badge" style="cursor:default;font-size:11px;"></div>
+            <button class="header-badge" onclick="showDashboard()">Дашборд</button>
             <button class="header-badge" onclick="showExamples()">Эталонные диалоги</button>
         </div>
     </div>
@@ -640,9 +680,30 @@
         <div class="card">
             <div class="card-title">Результаты оценки софт-скиллов</div>
             <div class="btn-group" style="margin-bottom: 18px;">
-                <button class="btn btn-success" onclick="exportExcel()">Экспорт в Excel</button>
+                <button class="btn btn-success" onclick="exportExcel('all')">Все результаты</button>
+                <button class="btn btn-success" onclick="exportExcel('good')">Отличные</button>
+                <button class="btn btn-outline" style="border-color: var(--warning); color: var(--warning);" onclick="exportExcel('medium')">Удовлетворительные</button>
+                <button class="btn btn-outline" style="border-color: var(--danger); color: var(--danger);" onclick="exportExcel('bad')">Критичные</button>
                 <button class="btn btn-outline" onclick="goToStep(2)">Другая оценка</button>
                 <button class="btn btn-outline" onclick="resetAll(); goToStep(1)">Новый файл</button>
+            </div>
+            <div id="filterControls" class="section-hidden" style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <span style="font-size:13px;color:var(--text-light);">Показать:</span>
+                    <button class="btn btn-outline btn-sm filter-btn active" onclick="setFilter('all')">Все</button>
+                    <button class="btn btn-outline btn-sm filter-btn" style="border-color:var(--danger);color:var(--danger);" onclick="setFilter('bad')">Критичные</button>
+                    <button class="btn btn-outline btn-sm filter-btn" style="border-color:var(--warning);color:var(--warning);" onclick="setFilter('medium')">Удовл.</button>
+                    <button class="btn btn-outline btn-sm filter-btn" style="border-color:var(--success);color:var(--success);" onclick="setFilter('good')">Отличные</button>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <span style="font-size:13px;color:var(--text-light);">Сортировка:</span>
+                    <select id="sortSelect" onchange="setSort(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);font-size:13px;background:white;">
+                        <option value="default">По порядку</option>
+                        <option value="worst">Сначала худшие</option>
+                        <option value="best">Сначала лучшие</option>
+                    </select>
+                </div>
+                <span id="filterCount" style="font-size:13px;color:var(--text-light);margin-left:auto;"></span>
             </div>
             <div style="overflow-x: auto;">
                 <table class="results-table" id="resultsTable">
@@ -669,6 +730,32 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="dashboardModal">
+    <div class="modal" style="max-width: 1100px;">
+        <button class="modal-close" onclick="closeModal('dashboardModal')">&times;</button>
+        <div class="modal-title">Дашборд аналитики</div>
+        <div id="dashboardSummary" class="dashboard-summary"></div>
+        <div class="dashboard-grid">
+            <div class="chart-card">
+                <div class="chart-card-title">Рейтинг сотрудников</div>
+                <div class="chart-wrapper"><canvas id="chartRanking"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-card-title">Распределение оценок</div>
+                <div class="chart-wrapper"><canvas id="chartDistribution"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-card-title">Динамика по дням</div>
+                <div class="chart-wrapper"><canvas id="chartDynamics"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-card-title">Топ слабых сторон</div>
+                <div class="chart-wrapper"><canvas id="chartWeaknesses"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="examplesModal">
     <div class="modal">
         <button class="modal-close" onclick="closeModal('examplesModal')">&times;</button>
@@ -688,6 +775,9 @@ let currentSessionId = null;
 let currentResults = [];
 let markedChats = new Set();
 let viewedChats = new Set();
+let displayIndices = [];
+let currentFilter = 'all';
+let currentSort = 'default';
 
 function goToStep(step) {
     document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('section-hidden'));
@@ -913,25 +1003,73 @@ function showResults(results) {
         <div class="summary-card"><div class="summary-card-value" style="-webkit-text-fill-color: #E17055">${bad}</div><div class="summary-card-label">Критичных (0)</div></div>
     `;
 
+    document.getElementById('filterControls').classList.remove('section-hidden');
+    currentFilter = 'all';
+    currentSort = 'default';
+    document.getElementById('sortSelect').value = 'default';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === 'Все'));
+    applyFilterAndSort();
+}
+
+function applyFilterAndSort() {
+    let indices = currentResults.map((_, i) => i);
+
+    if (currentFilter === 'good') {
+        indices = indices.filter(i => currentResults[i].total_score === 100);
+    } else if (currentFilter === 'bad') {
+        indices = indices.filter(i => currentResults[i].total_score === 0);
+    } else if (currentFilter === 'medium') {
+        indices = indices.filter(i => currentResults[i].total_score === 30);
+    }
+
+    if (currentSort === 'worst') {
+        indices.sort((a, b) => currentResults[a].total_score - currentResults[b].total_score);
+    } else if (currentSort === 'best') {
+        indices.sort((a, b) => currentResults[b].total_score - currentResults[a].total_score);
+    }
+
+    displayIndices = indices;
+    renderTable();
+}
+
+function setFilter(filter) {
+    currentFilter = filter;
+    const labels = {all: 'Все', bad: 'Критичные', medium: 'Удовл.', good: 'Отличные'};
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', labels[filter] && b.textContent.trim() === labels[filter]);
+    });
+    applyFilterAndSort();
+}
+
+function setSort(sort) {
+    currentSort = sort;
+    applyFilterAndSort();
+}
+
+function renderTable() {
     const tbody = document.getElementById('resultsBody');
-    tbody.innerHTML = results.map((r, i) => `
-        <tr id="row-${i}">
-            <td>${i + 1}</td>
+    tbody.innerHTML = displayIndices.map((origIdx, displayIdx) => {
+        const r = currentResults[origIdx];
+        return `
+        <tr id="row-${origIdx}">
+            <td>${displayIdx + 1}</td>
             <td>#${r.chat_id}</td>
             <td>${renderScoreBadge(r.criteria_scores[0].score)}</td>
             <td>${renderTotalScore(r.total_score)}</td>
             <td>
-                <button class="btn btn-outline btn-sm" onclick="showDetail(${i})">Подробнее</button>
-                <button class="btn btn-outline btn-sm" onclick="toggleChatText(${i})" id="toggle-${i}" style="border-color: var(--primary); color: var(--primary);">Диалог</button>
+                <button class="btn btn-outline btn-sm" onclick="showDetail(${origIdx})">Подробнее</button>
+                <button class="btn btn-outline btn-sm" onclick="toggleChatText(${origIdx})" id="toggle-${origIdx}" style="border-color: var(--primary); color: var(--primary);">Диалог</button>
                 <button class="mark-good-btn ${markedChats.has(r.chat_id) ? 'marked' : ''}" id="mark-${r.chat_id}" onclick="markGood('${r.chat_id}')">
                     ${markedChats.has(r.chat_id) ? 'Сохранён' : 'Эталон'}
                 </button>
             </td>
         </tr>
-        <tr id="chat-row-${i}" class="section-hidden chat-expanded-row">
-            <td colspan="5"><div class="chat-expanded-content" id="chat-content-${i}"><div style="text-align:center;color:var(--text-light);padding:20px;">Загрузка...</div></div></td>
-        </tr>
-    `).join('');
+        <tr id="chat-row-${origIdx}" class="section-hidden chat-expanded-row">
+            <td colspan="5"><div class="chat-expanded-content" id="chat-content-${origIdx}"><div style="text-align:center;color:var(--text-light);padding:20px;">Загрузка...</div></div></td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('filterCount').textContent = `Показано: ${displayIndices.length} из ${currentResults.length}`;
 }
 
 function toggleChatText(index) {
@@ -981,21 +1119,50 @@ function showDetail(index) {
     const r = currentResults[index];
     if (!r) return;
     const content = document.getElementById('modalContent');
+    const scoreColor = r.total_score === 100 ? '#00B894' : r.total_score === 30 ? '#FDCB6E' : '#E17055';
+    const scoreLabel = r.total_score === 100 ? 'Отлично' : r.total_score === 30 ? 'Удовлетворительно' : 'Критично';
+
+    const softScore = r.criteria_scores[0] ? r.criteria_scores[0].score : '-';
+    const softJust = r.criteria_scores[0] ? r.criteria_scores[0].justification : '';
+
     content.innerHTML = `
-        <div class="modal-title">#${r.chat_id} — ${r.employee_name} — ${r.total_score}/100</div>
-        <div class="alert alert-info" style="margin-bottom:14px;"><strong>Резюме:</strong> ${r.summary}</div>
-        <h4 style="margin:14px 0 10px;font-size:15px;">Оценки по критериям</h4>
-        <div class="criteria-list">
-            ${r.criteria_scores.map(cs => `
-                <div class="criteria-item">
-                    ${renderScoreBadge(cs.score)}
-                    <div><div class="criteria-name">${cs.name}</div><div class="criteria-just">${cs.justification}</div></div>
-                </div>`).join('')}
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            ${renderScoreBadge(softScore)}
+            <div>
+                <div style="font-size:18px;font-weight:700;color:var(--primary);">Диалог #${r.chat_id}</div>
+                <div style="font-size:13px;color:var(--text-light);">${r.employee_name} · ${r.date || '—'}</div>
+            </div>
+            <div style="margin-left:auto;padding:8px 20px;border-radius:12px;background:${scoreColor};color:white;font-weight:700;font-size:18px;">
+                ${r.total_score}/100 · ${scoreLabel}
+            </div>
         </div>
-        ${r.strengths.length > 0 ? `<h4 style="margin:16px 0 8px;color:#00B894;">Сильные стороны</h4>${r.strengths.map(s => `<span class="tag tag-green">${s}</span>`).join('')}` : ''}
-        ${r.weaknesses.length > 0 ? `<h4 style="margin:16px 0 8px;color:#E17055;">Зоны роста</h4>${r.weaknesses.map(w => `<span class="tag tag-red">${w}</span>`).join('')}` : ''}
-        ${r.recommendations.length > 0 ? `<h4 style="margin:16px 0 8px;color:var(--primary);">Рекомендации</h4>${r.recommendations.map(rec => `<span class="tag tag-blue">${rec}</span>`).join('')}` : ''}
-        <h4 style="margin:16px 0 8px;">Текст диалога</h4>
+
+        <div class="alert alert-info" style="margin-bottom:14px;"><strong>Резюме:</strong> ${r.summary}</div>
+
+        <div style="background:#F8F9FA;border-left:4px solid var(--primary);border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:16px;">
+            <div style="font-size:13px;font-weight:700;color:var(--primary);margin-bottom:8px;">Обоснование оценки (${softScore}/5)</div>
+            <div style="font-size:14px;line-height:1.6;color:var(--text);">${softJust}</div>
+        </div>
+
+        ${r.weaknesses.length > 0 ? `
+            <div style="margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:700;color:#E17055;margin-bottom:10px;">Зоны роста</div>
+                ${r.weaknesses.map(w => `<div style="background:#FFF0ED;border:1px solid #FFCDD2;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;line-height:1.5;color:var(--text);">• ${w}</div>`).join('')}
+            </div>` : ''}
+
+        ${r.recommendations.length > 0 ? `
+            <div style="margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:10px;">Рекомендации</div>
+                ${r.recommendations.map(rec => `<div style="background:#F0EEFF;border:1px solid rgba(108,92,231,0.15);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;line-height:1.5;color:var(--text);">→ ${rec}</div>`).join('')}
+            </div>` : ''}
+
+        ${r.strengths.length > 0 ? `
+            <div style="margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:700;color:#00B894;margin-bottom:10px;">Сильные стороны</div>
+                ${r.strengths.map(s => `<div style="background:#E8F8F5;border:1px solid #B2DFDB;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;line-height:1.5;color:var(--text);">✓ ${s}</div>`).join('')}
+            </div>` : ''}
+
+        <h4 style="margin:20px 0 10px;font-size:15px;">Текст диалога</h4>
         <div id="chatMessages" style="background:var(--bg);padding:14px;border-radius:var(--radius-sm);"><div style="text-align:center;color:var(--text-light);">Загрузка...</div></div>
     `;
     document.getElementById('detailModal').classList.add('active');
@@ -1037,9 +1204,148 @@ function markGood(chatId) {
         .catch(err => alert('Ошибка: ' + err.message));
 }
 
-function exportExcel() {
+function exportExcel(filter) {
     if (!currentSessionId) { alert('Нет результатов'); return; }
-    window.open(API + '/api/export/' + currentSessionId, '_blank');
+    const f = filter || 'all';
+    window.open(API + '/api/export/' + currentSessionId + '?filter=' + f, '_blank');
+}
+
+let dashboardCharts = {};
+
+function showDashboard() {
+    document.getElementById('dashboardModal').classList.add('active');
+    loadDashboard();
+}
+
+function destroyDashboardCharts() {
+    Object.values(dashboardCharts).forEach(c => { if (c) c.destroy(); });
+    dashboardCharts = {};
+}
+
+function loadDashboard() {
+    destroyDashboardCharts();
+    fetch(API + '/api/dashboard')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.total_evaluations) {
+                document.getElementById('dashboardSummary').innerHTML =
+                    '<div class="alert alert-warning">Нет данных. Сначала оцените диалоги.</div>';
+                return;
+            }
+            renderDashboardSummary(data);
+            renderRankingChart(data.employees);
+            renderDistributionChart(data.score_distribution);
+            renderDynamicsChart(data.dynamics);
+            renderWeaknessesChart(data.top_weaknesses);
+        });
+}
+
+function renderDashboardSummary(data) {
+    const totalAvg = data.employees.length
+        ? (data.employees.reduce((s, e) => s + e.avg_score, 0) / data.employees.length).toFixed(1)
+        : 0;
+    document.getElementById('dashboardSummary').innerHTML = `
+        <div class="summary-card"><div class="summary-card-value">${data.total_evaluations}</div><div class="summary-card-label">Всего оценок</div></div>
+        <div class="summary-card"><div class="summary-card-value">${data.total_employees}</div><div class="summary-card-label">Сотрудников</div></div>
+        <div class="summary-card"><div class="summary-card-value" style="color:var(--primary)">${totalAvg}</div><div class="summary-card-label">Средний балл</div></div>
+        <div class="summary-card"><div class="summary-card-value" style="color:var(--danger)">${data.score_distribution.critical}</div><div class="summary-card-label">Критичных (0)</div></div>
+        <div class="summary-card"><div class="summary-card-value" style="color:var(--success)">${data.score_distribution.excellent}</div><div class="summary-card-label">Отличных (100)</div></div>
+    `;
+}
+
+function renderRankingChart(employees) {
+    const top = employees.slice(0, 12);
+    const ctx = document.getElementById('chartRanking');
+    dashboardCharts.ranking = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: top.map(e => e.name.split(' ')[0]),
+            datasets: [{
+                label: 'Средний балл',
+                data: top.map(e => e.avg_score),
+                backgroundColor: top.map(e => e.avg_score >= 70 ? '#00B894' : e.avg_score >= 40 ? '#FDCB6E' : '#E17055'),
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { max: 100, beginAtZero: true } }
+        }
+    });
+}
+
+function renderDistributionChart(dist) {
+    const ctx = document.getElementById('chartDistribution');
+    dashboardCharts.distribution = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Отличные (100)', 'Удовлетв. (30)', 'Критичные (0)'],
+            datasets: [{
+                data: [dist.excellent, dist.satisfactory, dist.critical],
+                backgroundColor: ['#00B894', '#FDCB6E', '#E17055'],
+                borderWidth: 2,
+                borderColor: '#fff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+
+function renderDynamicsChart(dynamics) {
+    const ctx = document.getElementById('chartDynamics');
+    dashboardCharts.dynamics = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dynamics.map(d => d.date),
+            datasets: [{
+                label: 'Средний балл',
+                data: dynamics.map(d => d.avg_score),
+                borderColor: '#6C5CE7',
+                backgroundColor: 'rgba(108,92,231,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: '#6C5CE7',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { max: 100, beginAtZero: true } }
+        }
+    });
+}
+
+function renderWeaknessesChart(weaknesses) {
+    const ctx = document.getElementById('chartWeaknesses');
+    const data = weaknesses.slice(0, 8).reverse();
+    dashboardCharts.weaknesses = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(w => w.text.length > 40 ? w.text.substring(0, 37) + '...' : w.text),
+            datasets: [{
+                label: 'Количество',
+                data: data.map(w => w.count),
+                backgroundColor: '#E17055',
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true } }
+        }
+    });
 }
 
 function updateAiUsage() {

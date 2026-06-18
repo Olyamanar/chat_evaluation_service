@@ -24,7 +24,7 @@ EMPATHY_PHRASES = [
 
 RUDE_PHRASES = [
     "не знаю", "ничем не могу помочь", "ничем помочь не могу",
-    "ваши проблемы", "вы должны", "вы обязаны", "как я уже говорил",
+    "ваши проблемы", "как я уже говорил",
     "я же говорил", "читайте внимательнее", "это не наша проблема",
     "обратитесь куда-нибудь", "обратитесь в другое место",
     "что ещё", "ну и что", "вам же сказали", "я вам уже ответил",
@@ -378,9 +378,10 @@ def _detect_ignored_messages(chat: Chat) -> bool:
         "жду ответа", "жду вашего", "когда ответ", "сколько ждать",
         "ужас", "отписк", "бред", "бесполезно", "надоело",
     ]
-    for i in range(len(chat.messages) - 1):
-        msg = chat.messages[i]
-        next_msg = chat.messages[i + 1]
+    msgs = chat.messages
+    for i in range(len(msgs) - 1):
+        msg = msgs[i]
+        next_msg = msgs[i + 1]
         if msg.role == MessageRole.CLIENT and next_msg.role == MessageRole.CLIENT:
             next_text = next_msg.text.lower()
             skip_phrases = ["нажата кнопка", "отправил файл", "отправлена фотография",
@@ -388,12 +389,17 @@ def _detect_ignored_messages(chat: Chat) -> bool:
             if any(p in next_text for p in skip_phrases):
                 continue
             if any(p in next_text for p in follow_up_phrases):
-                return True
+                has_response_after = any(
+                    m.role == MessageRole.EMPLOYEE for m in msgs[i + 2:]
+                )
+                if not has_response_after:
+                    return True
 
     consecutive_client = 0
     max_consecutive = 0
     last_client_texts = []
-    for m in chat.messages:
+    last_consecutive_idx = 0
+    for j, m in enumerate(msgs):
         if m.role == MessageRole.CLIENT:
             text = m.text.lower()
             skip = ["нажата кнопка", "отправил файл"]
@@ -401,6 +407,7 @@ def _detect_ignored_messages(chat: Chat) -> bool:
                 consecutive_client += 1
                 max_consecutive = max(max_consecutive, consecutive_client)
                 last_client_texts.append(m.text.lower())
+                last_consecutive_idx = j
             else:
                 pass
         elif m.role == MessageRole.EMPLOYEE:
@@ -412,7 +419,11 @@ def _detect_ignored_messages(chat: Chat) -> bool:
         if any(p in combined for p in
                ["ужас", "отписк", "бред", "бесполезно", "надоело", "уйду",
                 "задолбал", "ненормально", "в суд", "жалоба"]):
-            return True
+            has_response_after = any(
+                m.role == MessageRole.EMPLOYEE for m in msgs[last_consecutive_idx + 1:]
+            )
+            if not has_response_after:
+                return True
 
     return False
 
@@ -573,7 +584,7 @@ def _evaluate_tone_politeness(chat: Chat) -> tuple:
         weaknesses.append("Оператор проигнорировал сообщение клиента и закрыл/не ответил на диалог")
 
     if client_negative and not has_empathy and not has_apology:
-        penalty += 3.0
+        penalty += 2.0
         reasons_str = ", ".join(neg_reasons)
         weaknesses.append(f"Клиент выразил негатив ({reasons_str}) — оператор не проявил эмпатию")
 
@@ -669,20 +680,17 @@ def _generate_recommendations(weaknesses: List[str], soft_score: int) -> List[st
         if "игнорир" in w_lower:
             recs.append(
                 "В диалоге вы не отреагировали на сообщение клиента — после этого диалог был закрыт. "
-                "Даже если ответа нет, напишите: «Я передал ваш вопрос коллегам, вернусь с ответом в течение часа». "
-                "🎓 Видео для прокачки: https://www.youtube.com/results?search_query=работа+с+возражениями+клиентов+в+поддержке"
+                "Даже если ответа нет, напишите: «Я передал ваш вопрос коллегам, вернусь с ответом в течение часа»."
             )
         elif "груб" in w_lower or "обесценив" in w_lower:
             recs.append(
                 "В ответе обнаружены формулировки, которые могут быть восприняты как грубые или обесценивающие. "
-                "Замените формальные ответы на личные: «Понимаю ваше беспокойство» вместо «Выплаты обрабатываются». "
-                "🎓 Видео для прокачки: https://www.youtube.com/results?search_query=деловая+переписка+с+клиентами"
+                "Замените формальные ответы на личные: «Понимаю ваше беспокойство» вместо «Выплаты обрабатываются»."
             )
         elif "негатив" in w_lower and ("не проявил" in w_lower or "не отреагировал" in w_lower):
             recs.append(
                 "Клиент выражал недовольство, но вы не показали, что понимаете его эмоции. "
-                "Начинайте ответ с сочувствия: «Понимаю, это неприятно. Давайте разберёмся вместе». "
-                "🎓 Видео для прокачки: https://www.youtube.com/results?search_query=эмпатия+в+общении+с+клиентами"
+                "Начинайте ответ с сочувствия: «Понимаю, это неприятно. Давайте разберёмся вместе»."
             )
 
     return recs
